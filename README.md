@@ -79,7 +79,3 @@ npm run preview  # Preview production build
 ## Build
 
 The project builds successfully with TypeScript strict mode enabled. All type errors have been resolved and the production build is optimized.
-
-## License
-
-MIT
