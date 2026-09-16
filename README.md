@@ -17,7 +17,7 @@ A web-based code analyzer that uses AI to review your code for quality issues, s
 - React + TypeScript
 - Monaco Editor (the same editor used in VS Code)
 - Tailwind CSS for styling
-- OpenAI GPT-4 for code analysis
+- Groq API for code analysis (free tier available)
 - TanStack Query for API state management
 
 ## Getting started
@@ -26,7 +26,7 @@ A web-based code analyzer that uses AI to review your code for quality issues, s
 
 - Node.js 18+
 - npm
-- OpenAI API key
+- Groq API key (free)
 
 ### Installation
 
@@ -37,8 +37,8 @@ npm install
 # Copy environment file
 cp .env.example .env
 
-# Add your OpenAI API key to .env
-# Get one from https://platform.openai.com/api-keys
+# Add your Groq API key to .env
+# Get one from https://console.groq.com/keys
 ```
 
 ### Run it
@@ -66,7 +66,7 @@ JavaScript, TypeScript, Python, Java, C#, C++, Go, Rust, PHP, Ruby, Swift, Kotli
 
 ## API costs
 
-This uses OpenAI's GPT-4 API. Each analysis costs a small amount based on the length of your code. Check OpenAI's pricing for current rates.
+This uses Groq's free API tier. Generous free limits for testing and development. Check Groq's current pricing for production usage.
 
 ## Development
 

@@ -113,8 +113,31 @@ export async function safeExecute<T>(fn: () => Promise<T>): Promise<Result<T>> {
 ];
 
 function AppContent() {
-  // Default to Light Mode as explicitly requested
-  const [isDark, setIsDark] = useState(false);
+  // Default to Light Mode, but persist user preference across refreshes
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('codesense_theme');
+      if (saved) {
+        return saved === 'dark';
+      }
+    } catch {
+      // Fallback if storage access is restricted
+    }
+    return false; // Default to Light Mode
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('codesense_theme', isDark ? 'dark' : 'light');
+    } catch {
+      // Ignore storage errors
+    }
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
 
   const [code, setCode] = useState(PRESETS[0].code);
   const [language, setLanguage] = useState('javascript');
@@ -260,16 +283,6 @@ function AppContent() {
                   Pro
                 </span>
               </div>
-            </div>
-
-            {/* Center Status Pill */}
-            <div className={`hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full backdrop-blur-md border ${
-              isDark 
-                ? 'bg-white/[0.04] border-white/[0.08] text-neutral-300' 
-                : 'bg-black/[0.03] border-black/[0.08] text-neutral-700'
-            }`}>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] animate-pulse" />
-              <span className="text-xs font-medium">GPT-4 Intelligence Ready</span>
             </div>
 
             {/* Right Quick Actions & Theme Switcher */}
@@ -462,7 +475,7 @@ function AppContent() {
         </div>
 
         {/* Side-by-Side Asymmetrical Studio & Results Grid (Left: Code Studio wider, Right: Results) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-start">
           {/* Left Column: Code Studio (Wider 7 cols / ~58%) */}
           <div className="flex flex-col space-y-5 lg:col-span-7">
             {/* Header with Title & Language selector */}

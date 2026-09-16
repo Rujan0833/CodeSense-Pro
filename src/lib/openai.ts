@@ -1,13 +1,13 @@
-import OpenAI from 'openai';
+import Groq from 'groq-sdk';
 import type { CodeAnalysis, AnalysisRequest } from '../types/analysis';
 
-const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+const apiKey = import.meta.env.VITE_GROQ_API_KEY;
 
 if (!apiKey) {
-  console.warn('OpenAI API key not found. Please set VITE_OPENAI_API_KEY in your .env file');
+  console.warn('Groq API key not found. Please set VITE_GROQ_API_KEY in your .env file');
 }
 
-const openai = new OpenAI({
+const groq = new Groq({
   apiKey: apiKey || '',
   dangerouslyAllowBrowser: true
 });
@@ -16,7 +16,7 @@ export async function analyzeCode(request: AnalysisRequest): Promise<CodeAnalysi
   const { code, language } = request;
 
   if (!apiKey) {
-    throw new Error('OpenAI API key not configured. Please set VITE_OPENAI_API_KEY in your .env file');
+    throw new Error('Groq API key not configured. Please set VITE_GROQ_API_KEY in your .env file');
   }
 
   const systemPrompt = `You are a code review assistant. Analyze code for quality, security, performance, and best practices. 
@@ -43,11 +43,11 @@ Return your analysis as a JSON object with the following structure:
 ${code}
 \`\`\`
 
-Provide a comprehensive analysis with issues, suggestions, and a quality score.`;
+Provide a comprehensive analysis with issues, suggestions, and a quality score. Return ONLY valid JSON, no other text.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+    const response = await groq.chat.completions.create({
+      model: 'qwen/qwen3.8-27b',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -58,13 +58,13 @@ Provide a comprehensive analysis with issues, suggestions, and a quality score.`
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new Error('No response from OpenAI');
+      throw new Error('No response from Groq');
     }
 
     const analysis = JSON.parse(content) as CodeAnalysis;
     return analysis;
   } catch (error) {
-    console.error('OpenAI API error:', error);
+    console.error('Groq API error:', error);
     throw new Error('Failed to analyze code. Please check your API key and try again.');
   }
 }
