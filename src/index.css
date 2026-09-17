@@ -131,3 +131,34 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Satellite Floating Glass Badges */
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.5deg);
+  }
+}
+
+@keyframes float-gentle-reverse {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(8px) rotate(-0.5deg);
+  }
+}
+
+.animate-float-1 {
+  animation: float-gentle 5s ease-in-out infinite;
+}
+
+.animate-float-2 {
+  animation: float-gentle-reverse 6s ease-in-out infinite;
+}
+
+.animate-float-3 {
+  animation: float-gentle 7s ease-in-out infinite 1s;
+}

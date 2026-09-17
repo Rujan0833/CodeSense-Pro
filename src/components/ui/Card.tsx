@@ -64,15 +64,32 @@ const Card: React.FC<CardProps> = ({
       className={`${baseStyles} ${selectedVariant} ${className}`}
       {...props}
     >
-      {/* Spotlight Cursor Gradient */}
+      {/* Liquid Glass Surface Glow */}
       {spotlightGlow && (
         <div
           className="pointer-events-none absolute -inset-px transition-opacity duration-300"
           style={{
             opacity,
             background: isDark
-              ? `radial-gradient(600px circle at ${position.x}px ${position.y}px, rgba(255,255,255,0.06), transparent 40%)`
-              : `radial-gradient(600px circle at ${position.x}px ${position.y}px, rgba(0,0,0,0.03), transparent 40%)`,
+              ? `radial-gradient(550px circle at ${position.x}px ${position.y}px, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.035) 25%, rgba(96, 165, 250, 0.02) 45%, transparent 65%)`
+              : `radial-gradient(500px circle at ${position.x}px ${position.y}px, rgba(255, 255, 255, 0.50) 0%, rgba(255, 255, 255, 0.20) 25%, rgba(0, 113, 227, 0.035) 45%, transparent 70%)`,
+          }}
+        />
+      )}
+
+      {/* Liquid Glass Edge Refraction (Beveled Rim Glow) */}
+      {spotlightGlow && (
+        <div
+          className="pointer-events-none absolute inset-0 rounded-3xl transition-opacity duration-300 z-10"
+          style={{
+            opacity,
+            border: '1px solid transparent',
+            WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
+            background: isDark
+              ? `radial-gradient(350px circle at ${position.x}px ${position.y}px, rgba(255, 255, 255, 0.20) 0%, rgba(96, 165, 250, 0.10) 35%, transparent 70%)`
+              : `radial-gradient(350px circle at ${position.x}px ${position.y}px, rgba(0, 113, 227, 0.18) 0%, rgba(0, 0, 0, 0.06) 35%, transparent 70%)`,
           }}
         />
       )}
@@ -80,8 +97,8 @@ const Card: React.FC<CardProps> = ({
       {/* Subtle specular top highlight */}
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-px ${
         isDark 
-          ? 'bg-gradient-to-r from-transparent via-white/20 to-transparent' 
-          : 'bg-gradient-to-r from-transparent via-black/5 to-transparent'
+          ? 'bg-gradient-to-r from-transparent via-white/25 to-transparent' 
+          : 'bg-gradient-to-r from-transparent via-black/8 to-transparent'
       }`} />
 
       {children}

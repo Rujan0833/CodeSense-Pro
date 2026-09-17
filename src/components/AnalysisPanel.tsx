@@ -10,6 +10,7 @@ import {
   ArrowUpRight 
 } from 'lucide-react';
 import Badge from './ui/Badge';
+import ScoreGauge from './ui/ScoreGauge';
 
 interface AnalysisPanelProps {
   analysis: CodeAnalysis | null;
@@ -17,17 +18,13 @@ interface AnalysisPanelProps {
 }
 
 const ScoreRing: React.FC<{ score: number; isDark?: boolean }> = ({ score, isDark = false }) => {
-  const radius = 46;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
-
-  const getColor = (s: number) => {
-    if (s >= 80) return { stroke: '#10b981', text: isDark ? 'text-emerald-400' : 'text-emerald-600', glow: 'rgba(16,185,129,0.25)', label: 'Exceptional' };
-    if (s >= 60) return { stroke: '#f59e0b', text: isDark ? 'text-amber-400' : 'text-amber-600', glow: 'rgba(245,158,11,0.25)', label: 'Acceptable' };
-    return { stroke: '#f43f5e', text: isDark ? 'text-rose-400' : 'text-rose-600', glow: 'rgba(244,63,94,0.25)', label: 'Needs Polish' };
+  const getStatus = (s: number) => {
+    if (s >= 80) return { text: isDark ? 'text-emerald-400' : 'text-emerald-600', label: 'Exceptional' };
+    if (s >= 60) return { text: isDark ? 'text-amber-400' : 'text-amber-600', label: 'Acceptable' };
+    return { text: isDark ? 'text-rose-400' : 'text-rose-600', label: 'Needs Polish' };
   };
 
-  const status = getColor(score);
+  const status = getStatus(score);
 
   return (
     <div className={`flex flex-col sm:flex-row items-center gap-6 p-6 rounded-2xl border backdrop-blur-md ${
@@ -35,40 +32,8 @@ const ScoreRing: React.FC<{ score: number; isDark?: boolean }> = ({ score, isDar
         ? 'bg-white/[0.02] border-white/[0.08]' 
         : 'bg-black/[0.02] border-black/[0.08]'
     }`}>
-      {/* Centered SVG Ring */}
-      <div className="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
-        <svg className="w-28 h-28 -rotate-90" viewBox="0 0 110 110">
-          <circle
-            cx="55"
-            cy="55"
-            r={radius}
-            stroke={isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}
-            strokeWidth="9"
-            fill="none"
-          />
-          <circle
-            cx="55"
-            cy="55"
-            r={radius}
-            stroke={status.stroke}
-            strokeWidth="9"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            fill="none"
-            style={{
-              filter: `drop-shadow(0 0 8px ${status.glow})`,
-              transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-          />
-        </svg>
-        <div className="absolute flex flex-col items-center justify-center">
-          <span className={`text-3xl font-bold tracking-tight ${status.text}`}>{score}</span>
-          <span className={`text-[10px] uppercase tracking-widest font-semibold ${
-            isDark ? 'text-neutral-500' : 'text-neutral-400'
-          }`}>/100</span>
-        </div>
-      </div>
+      {/* Animated VisionOS SVG Radial Gauge */}
+      <ScoreGauge score={score} isDark={isDark} size={112} strokeWidth={9} />
 
       {/* Score Description */}
       <div className="flex-1 space-y-2 text-center sm:text-left">

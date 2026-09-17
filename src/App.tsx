@@ -8,20 +8,25 @@ import {
   Play, 
   ShieldCheck, 
   FileCode2, 
-  Command,
   CheckCircle,
   Sun,
-  Moon
+  Moon,
+  Home,
+  LogOut
 } from 'lucide-react';
 import CodeEditor from './components/CodeEditor';
 import AnalysisPanel from './components/AnalysisPanel';
 import LoadingSpinner, { IosSpinner } from './components/LoadingSpinner';
 import ErrorDisplay from './components/ErrorDisplay';
 import Button from './components/ui/Button';
-import Dropdown from './components/ui/Dropdown';
 import Card from './components/ui/Card';
 import Badge from './components/ui/Badge';
+import ProductPage from './components/ProductPage';
+import AuthModal from './components/AuthModal';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { useRouter } from './lib/router';
 import { useCodeAnalysis } from './hooks/useCodeAnalysis';
+import { detectLanguage, SUPPORTED_LANGUAGES } from './lib/detector';
 import type { AnalysisRequest } from './types/analysis';
 
 const queryClient = new QueryClient();
@@ -30,7 +35,6 @@ interface Preset {
   id: string;
   name: string;
   category: string;
-  language: string;
   code: string;
 }
 
@@ -39,7 +43,6 @@ const PRESETS: Preset[] = [
     id: 'memory-leak',
     name: 'Recursive Stack Risk',
     category: 'Memory & Performance',
-    language: 'javascript',
     code: `// Potential stack overflow with unbounded recursion
 function calculateFactorial(n) {
   if (n <= 1) return 1;
@@ -54,7 +57,6 @@ console.log(result);`
     id: 'sql-injection',
     name: 'SQL Vulnerability',
     category: 'Security Risk',
-    language: 'typescript',
     code: `import { Request, Response } from 'express';
 import db from './database';
 
@@ -72,7 +74,6 @@ export async function getUserProfile(req: Request, res: Response) {
     id: 'react-leak',
     name: 'Async Race Condition',
     category: 'React Architecture',
-    language: 'typescript',
     code: `import { useState, useEffect } from 'react';
 
 export function UserAvatar({ userId }: { userId: string }) {
@@ -93,7 +94,6 @@ export function UserAvatar({ userId }: { userId: string }) {
     id: 'clean-code',
     name: 'Clean TS Architecture',
     category: 'Best Practice',
-    language: 'typescript',
     code: `interface Result<T> {
   readonly success: boolean;
   readonly data?: T;
@@ -112,54 +112,26 @@ export async function safeExecute<T>(fn: () => Promise<T>): Promise<Result<T>> {
   }
 ];
 
-function AppContent() {
-  // Default to Light Mode, but persist user preference across refreshes
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('codesense_theme');
-      if (saved) {
-        return saved === 'dark';
-      }
-    } catch {
-      // Fallback if storage access is restricted
-    }
-    return false; // Default to Light Mode
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('codesense_theme', isDark ? 'dark' : 'light');
-    } catch {
-      // Ignore storage errors
-    }
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDark]);
+function StudioContent({ 
+  isDark, 
+  onToggleTheme,
+  onNavigateHome
+}: { 
+  isDark: boolean; 
+  onToggleTheme: () => void;
+  onNavigateHome: () => void;
+}) {
+  const { user, logout } = useAuth();
+  const { navigate } = useRouter();
 
   const [code, setCode] = useState(PRESETS[0].code);
-  const [language, setLanguage] = useState('javascript');
   const [activePresetId, setActivePresetId] = useState('memory-leak');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const { mutate: analyzeCode, data: analysis, isPending, error, reset: resetAnalysis } = useCodeAnalysis();
+  // Auto-detect programming language based on code input
+  const detectedLanguage = useMemo(() => detectLanguage(code), [code]);
 
-  const languages = [
-    'javascript',
-    'typescript',
-    'python',
-    'java',
-    'csharp',
-    'cpp',
-    'go',
-    'rust',
-    'php',
-    'ruby',
-    'swift',
-    'kotlin'
-  ];
+  const { mutate: analyzeCode, data: analysis, isPending, error, reset: resetAnalysis } = useCodeAnalysis();
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -174,22 +146,40 @@ function AppContent() {
 
     const request: AnalysisRequest = {
       code,
-      language
+      language: detectedLanguage
     };
 
     analyzeCode(request);
-  }, [code, language, analyzeCode]);
+  }, [code, detectedLanguage, analyzeCode]);
 
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setCode('');
     setActivePresetId('');
     resetAnalysis();
     showToast('Workspace cleared');
-  };
+  }, [resetAnalysis]);
+
+  // Global Keyboard Shortcuts (⌘↵ / Ctrl↵ to Analyze, ⌘K / Ctrl+K to Clear)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!isPending && code.trim()) {
+          handleAnalyze();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        handleClear();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleAnalyze, handleClear, isPending, code]);
 
   const handleSelectPreset = (preset: Preset) => {
     setCode(preset.code);
-    setLanguage(preset.language);
     setActivePresetId(preset.id);
     resetAnalysis();
     showToast(`Loaded: ${preset.name}`);
@@ -258,39 +248,59 @@ function AppContent() {
       }`}>
         <div className="max-w-7xl mx-auto px-6 sm:px-10 py-4">
           <div className="flex items-center justify-between">
-            {/* Logo */}
+            {/* Logo & Breadcrumb to Home */}
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl p-0.5 flex items-center justify-center shadow-md ${
-                isDark 
-                  ? 'bg-gradient-to-tr from-white to-neutral-300' 
-                  : 'bg-gradient-to-tr from-[#1d1d1f] to-neutral-600'
-              }`}>
-                <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${
-                  isDark ? 'bg-[#09090e]' : 'bg-white'
-                }`}>
-                  <Code2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`font-semibold tracking-tight text-base ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`}>
-                  CodeSense
-                </span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+              <button 
+                onClick={onNavigateHome}
+                className="flex items-center gap-3 cursor-pointer text-left group"
+                title="Back to Product Page"
+              >
+                <div className={`w-9 h-9 rounded-xl p-0.5 flex items-center justify-center shadow-md transition-transform group-hover:scale-105 ${
                   isDark 
-                    ? 'bg-white/10 text-neutral-300 border-white/15' 
-                    : 'bg-black/[0.05] text-neutral-700 border-black/10'
+                    ? 'bg-gradient-to-tr from-white to-neutral-300' 
+                    : 'bg-gradient-to-tr from-[#1d1d1f] to-neutral-600'
                 }`}>
-                  Pro
-                </span>
-              </div>
+                  <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${
+                    isDark ? 'bg-[#09090e]' : 'bg-white'
+                  }`}>
+                    <Code2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold tracking-tight text-base ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`}>
+                    CodeSense
+                  </span>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                    isDark 
+                      ? 'bg-white/10 text-neutral-300 border-white/15' 
+                      : 'bg-black/[0.05] text-neutral-700 border-black/10'
+                  }`}>
+                    Studio
+                  </span>
+                </div>
+              </button>
             </div>
 
-            {/* Right Quick Actions & Theme Switcher */}
+            {/* Right Quick Actions: Home link, User profile badge, Theme Switcher, Sign Out */}
             <div className="flex items-center gap-3">
-              {/* Theme Toggle (Default Light) */}
+              {/* Home / Product Page Link */}
+              <button
+                onClick={onNavigateHome}
+                className={`hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-colors cursor-pointer ${
+                  isDark 
+                    ? 'text-neutral-300 hover:text-white bg-white/[0.03] border-white/10' 
+                    : 'text-neutral-700 hover:text-black bg-black/[0.03] border-black/10'
+                }`}
+                title="View Product Page"
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span>Product</span>
+              </button>
+
+              {/* Theme Toggle */}
               <button
                 type="button"
-                onClick={() => setIsDark(!isDark)}
+                onClick={onToggleTheme}
                 className={`p-2 rounded-xl border transition-all cursor-pointer ${
                   isDark 
                     ? 'bg-white/[0.05] hover:bg-white/[0.1] border-white/10 text-amber-300' 
@@ -301,15 +311,14 @@ function AppContent() {
                 {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
-              <div className={`hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border ${
-                isDark 
-                  ? 'bg-white/[0.03] border-white/[0.06] text-neutral-400' 
-                  : 'bg-black/[0.03] border-black/[0.06] text-neutral-600'
-              }`}>
-                <Command className="w-3.5 h-3.5 opacity-60" />
-                <span>↵ inspect</span>
+              {/* User Profile Pill */}
+              <div className="hidden md:flex items-center">
+                <Badge variant="default" isDark={isDark} withDot={true}>
+                  {user?.name || user?.email || 'Authenticated'}
+                </Badge>
               </div>
 
+              {/* Reset Editor */}
               <Button
                 variant="secondary"
                 size="sm"
@@ -320,40 +329,31 @@ function AppContent() {
                 <RotateCcw className="w-3 h-3 mr-1.5" />
                 Clear
               </Button>
+
+              {/* Sign Out */}
+              <button
+                onClick={async () => {
+                  await logout();
+                  navigate('/');
+                }}
+                className={`p-2 rounded-xl border transition-colors cursor-pointer text-xs flex items-center ${
+                  isDark 
+                    ? 'text-neutral-400 hover:text-white border-white/10 hover:bg-white/5' 
+                    : 'text-neutral-600 hover:text-black border-black/10 hover:bg-black/5'
+                }`}
+                title="Sign Out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Page Body with Generous Padding */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-12 sm:py-16 space-y-12 sm:space-y-16">
-        {/* Symmetrical Hero Section */}
-        <div className="text-center max-w-3xl mx-auto space-y-5">
-          {/* Pill WITHOUT icon as requested */}
-          <div className={`inline-flex items-center px-4 py-1.5 rounded-full border text-xs font-semibold backdrop-blur-md tracking-wide ${
-            isDark 
-              ? 'bg-white/[0.04] border-white/10 text-neutral-300' 
-              : 'bg-black/[0.04] border-black/10 text-neutral-700'
-          }`}>
-            <span>AI-Powered Heuristic Engine</span>
-          </div>
-
-          <h1 className={`text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-[1.1] ${
-            isDark ? 'text-apple-headline-dark' : 'text-apple-headline-light'
-          }`}>
-            Code review, redefined.
-          </h1>
-
-          <p className={`text-base sm:text-lg leading-relaxed max-w-2xl mx-auto font-normal ${
-            isDark ? 'text-neutral-400' : 'text-neutral-600'
-          }`}>
-            Surgical static inspection, runtime safety diagnostics, and architectural guidance crafted with Apple precision.
-          </p>
-        </div>
-
+      {/* Main Studio Body: Focused Workspace without the Marketing Headline */}
+      <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-8 sm:py-10 space-y-8 sm:space-y-10">
         {/* Symmetrical Scenario Presets Bar */}
         <div className="space-y-3.5 text-center">
-          {/* Label WITHOUT icon as requested */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-xs">
             <span className={`uppercase tracking-widest font-bold ${
               isDark ? 'text-neutral-300' : 'text-neutral-700'
@@ -445,10 +445,10 @@ function AppContent() {
             <div className={`text-3xl font-bold font-mono tracking-tight capitalize ${
               isDark ? 'text-white' : 'text-neutral-900'
             }`}>
-              {language}
+              {detectedLanguage}
             </div>
             <div className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
-              Active parser profile
+              Auto-detected syntax
             </div>
           </Card>
 
@@ -474,11 +474,11 @@ function AppContent() {
           </Card>
         </div>
 
-        {/* Side-by-Side Asymmetrical Studio & Results Grid (Left: Code Studio wider, Right: Results) */}
+        {/* Side-by-Side Asymmetrical Studio & Results Grid (Left: Code Studio wider 7 cols, Right: Results 5 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-start">
           {/* Left Column: Code Studio (Wider 7 cols / ~58%) */}
           <div className="flex flex-col space-y-5 lg:col-span-7">
-            {/* Header with Title & Language selector */}
+            {/* Header with Title & Auto-Detected Language Pill */}
             <div className="flex items-center justify-between px-2">
               <div className="flex items-center gap-2.5">
                 <h2 className={`text-sm font-semibold uppercase tracking-wider ${
@@ -486,17 +486,16 @@ function AppContent() {
                 }`}>
                   Code Section
                 </h2>
-                <Badge variant="default" withDot={false} isDark={isDark}>
-                  {language}
-                </Badge>
               </div>
-              <div className="w-44">
-                <Dropdown
-                  value={language}
-                  onChange={setLanguage}
-                  options={languages}
-                  isDark={isDark}
-                />
+              <div className="flex items-center gap-2">
+                <span className={`text-xs uppercase tracking-wider font-semibold ${
+                  isDark ? 'text-neutral-400' : 'text-neutral-500'
+                }`}>
+                  Auto-detected
+                </span>
+                <Badge variant="success" isDark={isDark} withDot={true}>
+                  {detectedLanguage.toUpperCase()}
+                </Badge>
               </div>
             </div>
 
@@ -507,7 +506,7 @@ function AppContent() {
               <div className="flex-1">
                 <CodeEditor
                   code={code}
-                  language={language}
+                  language={detectedLanguage}
                   onChange={(value) => setCode(value || '')}
                   height="480px"
                   isAnalyzing={isPending}
@@ -583,6 +582,48 @@ function AppContent() {
           </div>
         </div>
 
+        {/* Supported Languages Shelf in the Bottom Section */}
+        <div className="space-y-4 text-center pt-6">
+          <div className="space-y-1">
+            <h3 className={`text-xs uppercase tracking-widest font-bold ${
+              isDark ? 'text-neutral-300' : 'text-neutral-700'
+            }`}>
+              Supported Languages & Runtimes
+            </h3>
+            <p className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
+              Auto-detected in real time as you write or paste code
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-4xl mx-auto">
+            {SUPPORTED_LANGUAGES.map((lang) => {
+              const isCurrent = lang.id === detectedLanguage;
+              return (
+                <div
+                  key={lang.id}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 flex items-center gap-2 select-none ${
+                    isCurrent
+                      ? isDark
+                        ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                        : 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-sm'
+                      : isDark
+                        ? 'bg-white/[0.02] border-white/[0.06] text-neutral-400'
+                        : 'bg-white/80 border-black/[0.06] text-neutral-600 shadow-xs'
+                  }`}
+                >
+                  {isCurrent && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  )}
+                  <span>{lang.name}</span>
+                  <span className="text-[10px] font-mono opacity-60">
+                    {lang.extension}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Symmetrical Centered Footer */}
         <footer className={`pt-12 sm:pt-16 border-t text-center space-y-4 select-none ${
           isDark ? 'border-white/[0.06]' : 'border-black/[0.06]'
@@ -602,10 +643,117 @@ function AppContent() {
   );
 }
 
+function MainApp() {
+  const { currentRoute, navigate } = useRouter();
+  const { isAuthenticated, isLoading, token, isAuthModalOpen, authModalTab, closeAuthModal, openAuthModal } = useAuth();
+
+  // Theme state: defaults to Light Mode, saved in localStorage
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('codesense_theme');
+      if (saved) return saved === 'dark';
+    } catch {
+      // fallback
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('codesense_theme', isDark ? 'dark' : 'light');
+    } catch {
+      // ignore
+    }
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  const handleToggleTheme = () => {
+    setIsDark(prev => !prev);
+  };
+
+  // Route protection:
+  // Wait until auth session check finishes before making any redirect decisions!
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (currentRoute === '/studio' && !isAuthenticated) {
+      navigate('/');
+      openAuthModal('signin');
+    } else if ((currentRoute === '/login' || currentRoute === '/signup') && isAuthenticated) {
+      navigate('/studio');
+    }
+  }, [currentRoute, isAuthenticated, isLoading, navigate, openAuthModal]);
+
+  // Open modal if user navigates to /login or /signup directly
+  useEffect(() => {
+    if (currentRoute === '/login') {
+      openAuthModal('signin');
+    } else if (currentRoute === '/signup') {
+      openAuthModal('signup');
+    }
+  }, [currentRoute, openAuthModal]);
+
+  const handleAuthModalClose = () => {
+    closeAuthModal();
+    if (currentRoute === '/login' || currentRoute === '/signup') {
+      navigate('/');
+    }
+  };
+
+  const handleAuthSuccess = () => {
+    navigate('/studio');
+  };
+
+  // Smooth loading state while validating session on protected route during hard refresh
+  if (isLoading && currentRoute === '/studio' && token) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
+        isDark ? 'bg-[#050508]' : 'bg-[#f5f5f7]'
+      }`}>
+        <IosSpinner size={32} className={isDark ? 'text-white' : 'text-neutral-800'} />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Route Switcher */}
+      {currentRoute === '/studio' && isAuthenticated ? (
+        <StudioContent 
+          isDark={isDark} 
+          onToggleTheme={handleToggleTheme} 
+          onNavigateHome={() => navigate('/')} 
+        />
+      ) : (
+        <ProductPage 
+          isDark={isDark} 
+          onToggleTheme={handleToggleTheme} 
+          onNavigateToStudio={() => navigate('/studio')}
+        />
+      )}
+
+      {/* Global Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={handleAuthModalClose}
+        initialTab={authModalTab}
+        isDark={isDark}
+        onSuccess={handleAuthSuccess}
+      />
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
