@@ -1,13 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { 
-  Code2, 
-  Layers, 
-  Cpu, 
+  Code2,  
   RotateCcw, 
   Play, 
-  ShieldCheck, 
-  FileCode2, 
   CheckCircle,
   Sun,
   Moon,
@@ -197,34 +193,13 @@ function StudioContent({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleAnalyze]);
 
-  // Live computed stats
-  const stats = useMemo(() => {
-    const lines = code ? code.split('\n').length : 0;
-    const chars = code.length;
-    const nonWhitespace = code.replace(/\s/g, '').length;
-    return { lines, chars, nonWhitespace };
-  }, [code]);
-
   return (
     <div className={`relative min-h-screen font-sans transition-colors duration-300 ${
       isDark 
         ? 'bg-[#050508] text-neutral-100 selection:bg-white/20 selection:text-white' 
         : 'bg-[#f5f5f7] text-[#1d1d1f] selection:bg-black/10 selection:text-black'
     }`}>
-      {/* Background Ambient Lights */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        {isDark ? (
-          <>
-            <div className="absolute -top-[15%] left-[20%] w-[650px] h-[550px] bg-gradient-to-br from-indigo-600/12 via-purple-600/10 to-transparent rounded-full blur-[140px] animate-aurora-1" />
-            <div className="absolute top-[40%] -right-[10%] w-[600px] h-[500px] bg-gradient-to-bl from-cyan-600/12 via-blue-600/10 to-transparent rounded-full blur-[140px] animate-aurora-2" />
-          </>
-        ) : (
-          <>
-            <div className="absolute -top-[15%] left-[25%] w-[650px] h-[500px] bg-gradient-to-br from-blue-200/40 via-purple-100/30 to-transparent rounded-full blur-[140px] animate-aurora-1" />
-            <div className="absolute top-[35%] -right-[5%] w-[600px] h-[500px] bg-gradient-to-bl from-indigo-100/40 via-sky-100/30 to-transparent rounded-full blur-[140px] animate-aurora-2" />
-          </>
-        )}
-      </div>
+
 
       {/* Floating Toast Notification */}
       {toastMessage && (
@@ -399,80 +374,7 @@ function StudioContent({
           </div>
         </div>
 
-        {/* Symmetrical 4-Card Bento Metrics Shelf */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 max-w-5xl mx-auto">
-          <Card variant="glass" isDark={isDark} className="p-5 sm:p-6 text-center flex flex-col items-center justify-center space-y-2" spotlightGlow={false}>
-            <div className={`flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider font-semibold ${
-              isDark ? 'text-neutral-400' : 'text-neutral-500'
-            }`}>
-              <FileCode2 className="w-4 h-4" />
-              <span>Lines</span>
-            </div>
-            <div className={`text-3xl font-bold font-mono tracking-tight ${
-              isDark ? 'text-white' : 'text-neutral-900'
-            }`}>
-              {stats.lines}
-            </div>
-            <div className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
-              {stats.lines > 100 ? 'High complexity' : 'Standard scope'}
-            </div>
-          </Card>
 
-          <Card variant="glass" isDark={isDark} className="p-5 sm:p-6 text-center flex flex-col items-center justify-center space-y-2" spotlightGlow={false}>
-            <div className={`flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider font-semibold ${
-              isDark ? 'text-neutral-400' : 'text-neutral-500'
-            }`}>
-              <Cpu className="w-4 h-4" />
-              <span>Tokens</span>
-            </div>
-            <div className={`text-3xl font-bold font-mono tracking-tight ${
-              isDark ? 'text-white' : 'text-neutral-900'
-            }`}>
-              {stats.chars}
-            </div>
-            <div className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
-              {stats.nonWhitespace} characters
-            </div>
-          </Card>
-
-          <Card variant="glass" isDark={isDark} className="p-5 sm:p-6 text-center flex flex-col items-center justify-center space-y-2" spotlightGlow={false}>
-            <div className={`flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider font-semibold ${
-              isDark ? 'text-neutral-400' : 'text-neutral-500'
-            }`}>
-              <Layers className="w-4 h-4" />
-              <span>Language</span>
-            </div>
-            <div className={`text-3xl font-bold font-mono tracking-tight capitalize ${
-              isDark ? 'text-white' : 'text-neutral-900'
-            }`}>
-              {detectedLanguage}
-            </div>
-            <div className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
-              Auto-detected syntax
-            </div>
-          </Card>
-
-          <Card variant="glass" isDark={isDark} className="p-5 sm:p-6 text-center flex flex-col items-center justify-center space-y-2" spotlightGlow={false}>
-            <div className={`flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider font-semibold ${
-              isDark ? 'text-neutral-400' : 'text-neutral-500'
-            }`}>
-              <ShieldCheck className="w-4 h-4" />
-              <span>Status</span>
-            </div>
-            <div className="text-3xl font-bold font-mono tracking-tight">
-              {isPending ? (
-                <span className="text-cyan-500 animate-pulse">Running</span>
-              ) : analysis ? (
-                <span className="text-emerald-500">{analysis.score}/100</span>
-              ) : (
-                <span className={isDark ? 'text-neutral-400' : 'text-neutral-600'}>Ready</span>
-              )}
-            </div>
-            <div className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
-              {isPending ? 'Inspecting AST...' : analysis ? 'Inspection complete' : 'Idle standby'}
-            </div>
-          </Card>
-        </div>
 
         {/* Side-by-Side Asymmetrical Studio & Results Grid (Left: Code Studio wider 7 cols, Right: Results 5 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-start">
@@ -500,7 +402,7 @@ function StudioContent({
             </div>
 
             {/* Symmetrical Left Card Container */}
-            <Card isDark={isDark} className={`flex-1 flex flex-col p-5 sm:p-6 rounded-3xl space-y-5 ${
+            <Card isDark={isDark} tiltEnabled={false} className={`flex-1 flex flex-col p-5 sm:p-6 rounded-3xl space-y-5 ${
               isDark ? 'bg-[#09090e]/90 border-white/10' : 'bg-white/90 border-black/10'
             }`}>
               <div className="flex-1">
@@ -562,7 +464,7 @@ function StudioContent({
             </div>
 
             {/* Symmetrical Right Card Container */}
-            <Card isDark={isDark} className={`flex-1 flex flex-col p-6 sm:p-7 rounded-3xl min-h-[580px] ${
+            <Card isDark={isDark} tiltEnabled={false} className={`flex-1 flex flex-col p-6 sm:p-7 rounded-3xl min-h-[580px] ${
               isDark ? 'bg-[#09090e]/90 border-white/10' : 'bg-white/90 border-black/10'
             }`}>
               <div className="flex-1 flex flex-col justify-center">
@@ -647,7 +549,7 @@ function MainApp() {
   const { currentRoute, navigate } = useRouter();
   const { isAuthenticated, isLoading, token, isAuthModalOpen, authModalTab, closeAuthModal, openAuthModal } = useAuth();
 
-  // Theme state: defaults to Light Mode, saved in localStorage
+  // Theme state: defaults to Dark Mode, saved in localStorage
   const [isDark, setIsDark] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('codesense_theme');
@@ -655,8 +557,29 @@ function MainApp() {
     } catch {
       // fallback
     }
-    return false;
+    return true; // Default to dark mode
   });
+
+  // Mouse position for background light brush effect
+  const [mousePosition, setMousePosition] = useState({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+  const [isMouseActive, setIsMouseActive] = useState(false);
+
+  useEffect(() => {
+    let inactivityTimer: ReturnType<typeof setTimeout>;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+      setIsMouseActive(true);
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => setIsMouseActive(false), 300);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      clearTimeout(inactivityTimer);
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -726,13 +649,15 @@ function MainApp() {
         <StudioContent 
           isDark={isDark} 
           onToggleTheme={handleToggleTheme} 
-          onNavigateHome={() => navigate('/')} 
+          onNavigateHome={() => navigate('/')}
         />
       ) : (
         <ProductPage 
           isDark={isDark} 
           onToggleTheme={handleToggleTheme} 
           onNavigateToStudio={() => navigate('/studio')}
+          mousePosition={mousePosition || { x: window.innerWidth / 2, y: window.innerHeight / 2 }}
+          isMouseActive={isMouseActive}
         />
       )}
 

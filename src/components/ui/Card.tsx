@@ -6,6 +6,7 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'elevated' | 'glass' | 'spotlight';
   spotlightGlow?: boolean;
   isDark?: boolean;
+  tiltEnabled?: boolean;
 }
 
 const Card: React.FC<CardProps> = ({ 
@@ -14,19 +15,32 @@ const Card: React.FC<CardProps> = ({
   variant = 'spotlight',
   spotlightGlow = true,
   isDark = false,
+  tiltEnabled = true,
   ...props
 }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [tilt, setTilt] = useState<{ rx: number; ry: number }>({ rx: 0, ry: 0 });
   const [opacity, setOpacity] = useState(0);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!divRef.current || !spotlightGlow) return;
+    if (!divRef.current) return;
     const rect = divRef.current.getBoundingClientRect();
-    setPosition({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    if (spotlightGlow) {
+      setPosition({ x, y });
+    }
+
+    // 3D Tilt calculations
+    if (tiltEnabled) {
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = ((y - centerY) / centerY) * -4; // Max 4 deg tilt
+      const rotateY = ((x - centerX) / centerX) * 4;
+      setTilt({ rx: rotateX, ry: rotateY });
+    }
   };
 
   const handleMouseEnter = () => {
@@ -35,6 +49,7 @@ const Card: React.FC<CardProps> = ({
 
   const handleMouseLeave = () => {
     if (spotlightGlow) setOpacity(0);
+    if (tiltEnabled) setTilt({ rx: 0, ry: 0 }); // Reset tilt
   };
 
   const baseStyles = 'relative rounded-3xl overflow-hidden transition-all duration-300';
@@ -62,6 +77,12 @@ const Card: React.FC<CardProps> = ({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={`${baseStyles} ${selectedVariant} ${className}`}
+      style={{
+        transform: tiltEnabled
+          ? `perspective(1000px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`
+          : undefined,
+        transition: opacity === 1 ? 'transform 0.1s ease-out' : 'transform 0.5s ease-out',
+      }}
       {...props}
     >
       {/* Liquid Glass Surface Glow */}

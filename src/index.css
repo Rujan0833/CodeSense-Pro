@@ -162,3 +162,155 @@
 .animate-float-3 {
   animation: float-gentle 7s ease-in-out infinite 1s;
 }
+
+/* Floating Light Streak Animations */
+@keyframes float-streak-1 {
+  0%, 100% {
+    transform: translate(0, 0) rotate(-30deg) scale(1);
+    opacity: 0.85;
+  }
+  33% {
+    transform: translate(30px, -20px) rotate(-26deg) scale(1.06);
+    opacity: 1;
+  }
+  66% {
+    transform: translate(-20px, 15px) rotate(-34deg) scale(0.96);
+    opacity: 0.9;
+  }
+}
+
+@keyframes float-streak-2 {
+  0%, 100% {
+    transform: translate(0, 0) rotate(25deg) scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: translate(-25px, 20px) rotate(30deg) scale(1.1);
+    opacity: 1;
+  }
+}
+
+.animate-float-streak-1 {
+  animation: float-streak-1 20s ease-in-out infinite;
+}
+
+.animate-float-streak-2 {
+  animation: float-streak-2 18s ease-in-out infinite;
+}
+
+/* Star Trail & Cosmic Celestial Animations */
+@keyframes star-twinkle {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95));
+  }
+}
+
+@keyframes star-trail-pulse {
+  0%, 100% {
+    opacity: 0.7;
+    filter: drop-shadow(0 0 10px rgba(125, 211, 252, 0.7));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 20px rgba(165, 180, 252, 0.95));
+  }
+}
+
+@keyframes shooting-star-1 {
+  0% {
+    transform: translate(140px, -140px) rotate(-35deg) scaleX(0.4);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+    transform: translate(40px, -40px) rotate(-35deg) scaleX(1);
+  }
+  11% {
+    transform: translate(-460px, 460px) rotate(-35deg) scaleX(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-460px, 460px) rotate(-35deg) scaleX(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes shooting-star-2 {
+  0%, 35% {
+    transform: translate(220px, -140px) rotate(-40deg) scaleX(0.3);
+    opacity: 0;
+  }
+  38% {
+    opacity: 1;
+    transform: translate(90px, -50px) rotate(-40deg) scaleX(1);
+  }
+  46% {
+    transform: translate(-400px, 340px) rotate(-40deg) scaleX(1.3);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-400px, 340px) rotate(-40deg) scaleX(1.3);
+    opacity: 0;
+  }
+}
+
+.animate-star-twinkle {
+  animation: star-twinkle 3.5s ease-in-out infinite;
+}
+
+.animate-star-trail-pulse {
+  animation: star-trail-pulse 6s ease-in-out infinite alternate;
+}
+
+.animate-shooting-star-1 {
+  animation: shooting-star-1 9s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+
+.animate-shooting-star-2 {
+  animation: shooting-star-2 13s cubic-bezier(0.25, 0.1, 0.25, 1) infinite;
+}
+
+/* Dynamic Text Reveal */
+@keyframes text-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+    filter: blur(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+}
+
+.animate-text-reveal {
+  animation: text-reveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0; /* starts hidden */
+}
+
+/* Floating Particles Parallax */
+@keyframes float-particle {
+  0%, 100% {
+    transform: translate(0px, 0px) rotate(0deg);
+  }
+  25% {
+    transform: translate(15px, -25px) rotate(15deg);
+  }
+  50% {
+    transform: translate(-10px, -45px) rotate(-5deg);
+  }
+  75% {
+    transform: translate(-25px, -15px) rotate(-15deg);
+  }
+}
+
+.animate-float-particle {
+  animation: float-particle 18s ease-in-out infinite;
+}

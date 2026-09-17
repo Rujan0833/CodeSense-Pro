@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { SUPPORTED_LANGUAGES } from '../lib/detector';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import Badge from './ui/Badge';
 import ScrollReveal from './ui/ScrollReveal';
-import PerspectiveScroll from './ui/PerspectiveScroll';
 import AnimatedCounter from './ui/AnimatedCounter';
 import ScrollProgress from './ui/ScrollProgress';
 import ScoreGauge from './ui/ScoreGauge';
@@ -99,12 +98,58 @@ interface ProductPageProps {
   isDark: boolean;
   onToggleTheme: () => void;
   onNavigateToStudio: () => void;
+  mousePosition?: { x: number; y: number };
+  isMouseActive?: boolean;
 }
+
+// Magnetic Button Effect Wrapper
+const MagneticButton: React.FC<{ children: React.ReactNode; strength?: number }> = ({ children, strength = 0.3 }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const deltaX = (e.clientX - centerX) * strength;
+    const deltaY = (e.clientY - centerY) * strength;
+    ref.current.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+  }, [strength]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (!ref.current) return;
+    ref.current.style.transform = 'translate(0px, 0px)';
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="inline-block transition-transform duration-300 ease-out"
+    >
+      {children}
+    </div>
+  );
+};
+
+// Floating Code Particles
+const PARTICLES = [
+  { symbol: '{ }', x: '12%', y: '20%', delay: '0s', duration: '18s', size: 'text-lg', opacity: 'opacity-[0.06]' },
+  { symbol: '< />', x: '78%', y: '35%', delay: '3s', duration: '22s', size: 'text-base', opacity: 'opacity-[0.05]' },
+  { symbol: '//', x: '88%', y: '15%', delay: '6s', duration: '20s', size: 'text-xl', opacity: 'opacity-[0.04]' },
+  { symbol: '( )', x: '5%', y: '55%', delay: '2s', duration: '24s', size: 'text-base', opacity: 'opacity-[0.05]' },
+  { symbol: '[ ]', x: '65%', y: '65%', delay: '8s', duration: '19s', size: 'text-sm', opacity: 'opacity-[0.04]' },
+  { symbol: '=>', x: '30%', y: '75%', delay: '4s', duration: '21s', size: 'text-lg', opacity: 'opacity-[0.05]' },
+  { symbol: '&&', x: '50%', y: '10%', delay: '7s', duration: '23s', size: 'text-sm', opacity: 'opacity-[0.04]' },
+];
 
 export const ProductPage: React.FC<ProductPageProps> = ({
   isDark,
   onToggleTheme,
-  onNavigateToStudio
+  onNavigateToStudio,
+  mousePosition = { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+  isMouseActive = false
 }) => {
   const { user, isAuthenticated, logout, openAuthModal } = useAuth();
   const [activeScenarioId, setActiveScenarioId] = useState<string>('clean');
@@ -130,6 +175,67 @@ export const ProductPage: React.FC<ProductPageProps> = ({
 
       {/* Background Ambient Lights */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        {/* Dynamic animated light streaks */}
+        <div className="absolute inset-0">
+          {/* Main streak from top-right */}
+          <div 
+            className="absolute top-0 right-0 w-[1200px] h-[400px] animate-float-streak-1"
+            style={{
+              background: isDark 
+                ? 'linear-gradient(135deg, transparent 0%, rgba(100, 150, 255, 0.15) 40%, rgba(150, 100, 255, 0.1) 70%, transparent 100%)'
+                : 'linear-gradient(135deg, transparent 0%, rgba(0, 0, 0, 0.05) 40%, rgba(0, 0, 0, 0.03) 70%, transparent 100%)',
+              filter: 'blur(60px)',
+              transform: 'rotate(-30deg) translate(50%, -50%)',
+              mixBlendMode: isDark ? 'screen' : 'multiply'
+            }}
+          />
+          
+          {/* Secondary streak from bottom-left */}
+          <div 
+            className="absolute bottom-0 left-0 w-[800px] h-[300px] animate-float-streak-2"
+            style={{
+              background: isDark 
+                ? 'linear-gradient(45deg, transparent 0%, rgba(150, 200, 255, 0.12) 30%, rgba(200, 150, 255, 0.08) 60%, transparent 100%)'
+                : 'linear-gradient(45deg, transparent 0%, rgba(0, 0, 0, 0.04) 30%, rgba(0, 0, 0, 0.02) 60%, transparent 100%)',
+              filter: 'blur(50px)',
+              transform: 'rotate(25deg) translate(-30%, 30%)',
+              mixBlendMode: isDark ? 'screen' : 'multiply'
+            }}
+          />
+          
+          {/* Mouse-following Blue Star light trail & strong outside radial gradient */}
+          {/* 1. Trailing Blue Star Starlight Ghost (Smooth celestial trail following cursor) */}
+          <div 
+            className="fixed w-[360px] h-[360px] rounded-full pointer-events-none transition-transform duration-500 ease-out"
+            style={{
+              background: isDark 
+                ? 'radial-gradient(circle, rgba(186, 230, 253, 0.20) 0%, rgba(56, 189, 248, 0.12) 30%, rgba(14, 165, 233, 0.05) 60%, transparent 75%)'
+                : 'radial-gradient(circle, rgba(125, 211, 252, 0.12) 0%, rgba(56, 189, 248, 0.06) 35%, transparent 70%)',
+              transform: `translate(${mousePosition.x - 180}px, ${mousePosition.y - 180}px)`,
+              mixBlendMode: isDark ? 'screen' : 'multiply',
+              opacity: isMouseActive ? 1 : 0,
+              transition: 'transform 500ms ease-out, opacity 250ms ease-out',
+              zIndex: 1
+            }}
+          />
+
+          {/* 2. Strong Blue Supergiant Radial Gradient (Intense, hot light-blue celestial glow) */}
+          <div 
+            className="fixed w-[480px] h-[480px] rounded-full pointer-events-none"
+            style={{
+              background: isDark 
+                ? 'radial-gradient(circle, rgba(255, 255, 255, 0.25) 0%, rgba(186, 230, 253, 0.20) 20%, rgba(56, 189, 248, 0.15) 42%, rgba(14, 165, 233, 0.05) 65%, transparent 78%)'
+                : 'radial-gradient(circle, rgba(255, 255, 255, 0.60) 0%, rgba(186, 230, 253, 0.25) 25%, rgba(56, 189, 248, 0.08) 50%, transparent 75%)',
+              transform: `translate(${mousePosition.x - 240}px, ${mousePosition.y - 240}px)`,
+              mixBlendMode: isDark ? 'screen' : 'soft-light',
+              opacity: isMouseActive ? 1 : 0,
+              transition: 'transform 200ms ease-out, opacity 250ms ease-out',
+              zIndex: 2
+            }}
+          />
+        </div>
+        
+        {/* Existing ambient lights */}
         {isDark ? (
           <>
             <div className="absolute -top-[15%] left-[20%] w-[650px] h-[550px] bg-gradient-to-br from-indigo-600/12 via-purple-600/10 to-transparent rounded-full blur-[140px] animate-aurora-1" />
@@ -241,11 +347,29 @@ export const ProductPage: React.FC<ProductPageProps> = ({
       </header>
 
       {/* Main Page Body */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 space-y-28 sm:space-y-36 pb-24">
-        {/* Full-Screen Hero Section (Dedicated Screen 1, Zero Card Peeking) */}
-        <section className="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center text-center max-w-3xl mx-auto py-10 sm:py-16">
-          {/* Central Hero Headline, CTA & Snug Scroll Cue Package */}
-          <div className="space-y-6 sm:space-y-7 flex flex-col items-center">
+      <main className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 pb-24">
+        {/* Dedicated Full-Screen Hero Section */}
+        <section className="min-h-[calc(100vh-80px)] flex flex-col items-center justify-between text-center max-w-3xl mx-auto pt-10 sm:pt-16 pb-8 sm:pb-10 relative">
+          {/* Floating Code Particles */}
+          {PARTICLES.map((p, i) => (
+            <div
+              key={i}
+              className={`absolute font-mono select-none pointer-events-none animate-float-particle ${p.size} ${p.opacity} ${
+                isDark ? 'text-white' : 'text-black'
+              }`}
+              style={{
+                left: p.x,
+                top: p.y,
+                animationDelay: p.delay,
+                animationDuration: p.duration,
+              }}
+            >
+              {p.symbol}
+            </div>
+          ))}
+
+          {/* Central Hero Headline & CTA Package */}
+          <div className="my-auto space-y-6 sm:space-y-7 flex flex-col items-center">
             <ScrollReveal delay={0} distance={20}>
               <div className={`inline-flex items-center px-4 py-1.5 rounded-full border text-xs font-semibold backdrop-blur-md tracking-wide ${
                 isDark 
@@ -255,6 +379,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
                 <span>AI-Powered Heuristic Engine</span>
               </div>
             </ScrollReveal>
+
 
             <ScrollReveal delay={100} distance={28}>
               <h1 className={`text-4xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.08] ${
@@ -272,50 +397,52 @@ export const ProductPage: React.FC<ProductPageProps> = ({
               </p>
             </ScrollReveal>
 
-            {/* Primary CTA Button */}
+            {/* Primary CTA Button with Magnetic Effect */}
             <ScrollReveal delay={300} distance={24}>
               <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  isDark={isDark}
-                  onClick={handleUseCodeSense}
-                  className="px-10 py-4 rounded-full text-sm font-semibold shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-transform"
-                >
-                  <Play className={`w-4 h-4 mr-2 ${isDark ? 'fill-black' : 'fill-white'}`} />
-                  <span>Use CodeSense Pro</span>
-                  <ArrowRight className="w-4 h-4 ml-1.5" />
-                </Button>
-              </div>
-            </ScrollReveal>
-
-            {/* Apple Downward Scroll Cue Button - Snug right below CTA, no void */}
-            <ScrollReveal delay={380} distance={15}>
-              <div className="pt-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const previewEl = document.getElementById('preview-showcase');
-                    if (previewEl) {
-                      previewEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                  }}
-                  className={`group inline-flex items-center gap-2 text-xs font-medium tracking-wide transition-all cursor-pointer select-none py-2 px-4 rounded-full border shadow-sm ${
-                    isDark
-                      ? 'text-neutral-400 hover:text-white border-white/10 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
-                      : 'text-neutral-500 hover:text-black border-black/10 hover:border-black/20 bg-black/[0.03] hover:bg-black/[0.06]'
-                  }`}
-                >
-                  <span>Explore Heuristics</span>
-                  <ChevronDown className="w-3.5 h-3.5 transition-transform group-hover:translate-y-0.5 animate-bounce" />
-                </button>
+                <MagneticButton strength={0.25}>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    isDark={isDark}
+                    onClick={handleUseCodeSense}
+                    className="px-10 py-4 rounded-full text-sm font-semibold shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                  >
+                    <Play className={`w-4 h-4 mr-2 ${isDark ? 'fill-black' : 'fill-white'}`} />
+                    <span>Use CodeSense Pro</span>
+                    <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </Button>
+                </MagneticButton>
               </div>
             </ScrollReveal>
           </div>
+
+          {/* Apple Downward Scroll Cue Button - Anchored at bottom of Hero Viewport */}
+          <ScrollReveal delay={380} distance={15}>
+            <div className="mt-auto pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const previewEl = document.getElementById('preview-showcase');
+                  if (previewEl) {
+                    previewEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className={`group inline-flex items-center gap-2 text-xs font-medium tracking-wide transition-all cursor-pointer select-none py-2 px-4 rounded-full border shadow-sm ${
+                  isDark
+                    ? 'text-neutral-400 hover:text-white border-white/10 hover:border-white/20 bg-white/[0.03] hover:bg-white/[0.06]'
+                    : 'text-neutral-500 hover:text-black border-black/10 hover:border-black/20 bg-black/[0.03] hover:bg-black/[0.06]'
+                }`}
+              >
+                <span>Explore Heuristics</span>
+                <ChevronDown className="w-3.5 h-3.5 transition-transform group-hover:translate-y-0.5 animate-bounce" />
+              </button>
+            </div>
+          </ScrollReveal>
         </section>
 
-        {/* Interactive Studio Preview Showcase (Immediately Follows Hero with Zero Wasteland) */}
-        <section id="preview-showcase" className="max-w-5xl mx-auto space-y-6 !mt-0 pt-6 scroll-mt-24">
+        {/* Interactive Studio Preview Showcase */}
+        <section id="preview-showcase" className="max-w-5xl mx-auto space-y-6 pt-12 sm:pt-16 scroll-mt-24">
           {/* Scenario Selector Pills */}
           <ScrollReveal delay={0}>
             <div className="flex flex-col items-center space-y-3 text-center">
@@ -324,9 +451,9 @@ export const ProductPage: React.FC<ProductPageProps> = ({
               }`}>
                 Live Heuristic Preview • Choose Scenario
               </span>
-              <div className="inline-flex flex-wrap items-center justify-center p-1.5 rounded-full border backdrop-blur-xl gap-1.5 transition-all shadow-sm ${
+              <div className={`inline-flex flex-wrap items-center justify-center p-1.5 rounded-full border backdrop-blur-xl gap-1.5 transition-all shadow-sm ${
                 isDark ? 'bg-white/[0.04] border-white/10' : 'bg-black/[0.04] border-black/10'
-              }">
+              }`}>
                 {PREVIEW_SCENARIOS.map((sc) => {
                   const isActive = sc.id === activeScenarioId;
                   return (
@@ -378,11 +505,10 @@ export const ProductPage: React.FC<ProductPageProps> = ({
               <span className="text-[11px] font-medium tracking-wide">12 Polyglot Runtimes</span>
             </div>
 
-            {/* Main 3D Perspective Preview Card */}
-            <PerspectiveScroll maxRotateX={12} minScale={0.93}>
-              <Card isDark={isDark} className={`p-4 sm:p-6 rounded-3xl border shadow-2xl transition-all ${
-                isDark ? 'bg-[#09090e]/90 border-white/10' : 'bg-white/90 border-black/10'
-              }`}>
+            {/* Main Preview Card */}
+            <Card isDark={isDark} className={`p-4 sm:p-6 rounded-3xl border shadow-2xl transition-all ${
+              isDark ? 'bg-[#09090e]/90 border-white/10' : 'bg-white/90 border-black/10'
+            }`}>
                 {/* Window Header */}
                 <div className={`flex items-center justify-between px-4 py-3 border-b text-xs select-none ${
                   isDark ? 'border-white/10 text-neutral-400' : 'border-black/10 text-neutral-600'
@@ -450,12 +576,11 @@ export const ProductPage: React.FC<ProductPageProps> = ({
                   </div>
                 </div>
               </Card>
-            </PerspectiveScroll>
           </div>
         </section>
 
         {/* Features Bento Grid with Staggered Scroll Reveal */}
-        <section className="space-y-8">
+        <section className="space-y-8 mt-24 sm:mt-32">
           <ScrollReveal delay={0}>
             <div className="text-center space-y-2 max-w-2xl mx-auto">
               <h2 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
@@ -525,7 +650,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
 
         {/* Supported Languages Shelf */}
         <ScrollReveal delay={100}>
-          <section className="space-y-4 text-center pt-4">
+          <section className="space-y-4 text-center pt-4 mt-24 sm:mt-32">
             <div className="space-y-1">
               <h3 className={`text-xs uppercase tracking-widest font-bold ${
                 isDark ? 'text-neutral-300' : 'text-neutral-700'
@@ -557,7 +682,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
 
         {/* Bottom CTA Banner */}
         <ScrollReveal delay={80} scale={0.96}>
-          <section className="max-w-4xl mx-auto text-center">
+          <section className="max-w-4xl mx-auto text-center mt-24 sm:mt-32">
             <Card isDark={isDark} className={`p-8 sm:p-12 rounded-3xl text-center space-y-5 border ${
               isDark ? 'bg-[#0a0a10] border-white/15' : 'bg-white border-black/10 shadow-lg'
             }`}>
@@ -570,23 +695,25 @@ export const ProductPage: React.FC<ProductPageProps> = ({
                 Open the studio now to benchmark performance, audit vulnerabilities, and generate intelligent fixes.
               </p>
               <div className="pt-2 flex justify-center">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  isDark={isDark}
-                  onClick={handleUseCodeSense}
-                  className="px-10 py-4 rounded-full text-sm font-semibold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-transform"
-                >
-                  <Zap className="w-4 h-4 mr-2" />
-                  <span>Launch CodeSense Studio</span>
-                </Button>
+                <MagneticButton strength={0.25}>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    isDark={isDark}
+                    onClick={handleUseCodeSense}
+                    className="px-10 py-4 rounded-full text-sm font-semibold shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    <span>Launch CodeSense Studio</span>
+                  </Button>
+                </MagneticButton>
               </div>
             </Card>
           </section>
         </ScrollReveal>
 
         {/* Footer */}
-        <footer className={`pt-12 sm:pt-16 border-t text-center space-y-4 select-none ${
+        <footer className={`mt-24 sm:mt-32 pt-12 sm:pt-16 border-t text-center space-y-4 select-none ${
           isDark ? 'border-white/[0.06]' : 'border-black/[0.06]'
         }`}>
           <div className={`flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs ${

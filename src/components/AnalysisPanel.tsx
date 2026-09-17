@@ -7,7 +7,8 @@ import {
   Check, 
   Lightbulb, 
   ShieldAlert, 
-  ArrowUpRight 
+  ArrowUpRight,
+  ChevronDown
 } from 'lucide-react';
 import Badge from './ui/Badge';
 import ScoreGauge from './ui/ScoreGauge';
@@ -63,6 +64,7 @@ const ScoreRing: React.FC<{ score: number; isDark?: boolean }> = ({ score, isDar
 
 const IssueCard: React.FC<{ issue: CodeIssue; isDark?: boolean }> = ({ issue, isDark = false }) => {
   const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const getVariant = (sev: string): 'error' | 'warning' | 'info' => {
     if (sev === 'error') return 'error';
@@ -77,81 +79,98 @@ const IssueCard: React.FC<{ issue: CodeIssue; isDark?: boolean }> = ({ issue, is
   };
 
   return (
-    <div className={`p-5 sm:p-6 rounded-2xl border transition-all duration-200 space-y-3 ${
+    <div className={`rounded-2xl border transition-all duration-200 overflow-hidden ${
       isDark 
-        ? 'bg-white/[0.03] hover:bg-white/[0.05] border-white/[0.08] hover:border-white/15' 
-        : 'bg-black/[0.02] hover:bg-black/[0.04] border-black/[0.08] hover:border-black/15 shadow-sm'
+        ? 'bg-white/[0.02] hover:bg-white/[0.04] border-white/[0.08] hover:border-white/15' 
+        : 'bg-black/[0.01] hover:bg-black/[0.03] border-black/[0.08] hover:border-black/15 shadow-sm'
     }`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant={getVariant(issue.severity)} isDark={isDark}>
-            {issue.severity.toUpperCase()}
-          </Badge>
-          <span className={`text-xs font-mono px-2.5 py-0.5 rounded-md border ${
-            isDark 
-              ? 'text-neutral-400 bg-white/[0.05] border-white/10' 
-              : 'text-neutral-600 bg-black/[0.04] border-black/10'
-          }`}>
-            Line {issue.line}
-          </span>
-        </div>
-      </div>
-
-      <p className={`text-sm font-medium leading-relaxed ${
-        isDark ? 'text-neutral-200' : 'text-neutral-800'
-      }`}>
-        {issue.message}
-      </p>
-
-      {issue.suggestion && (
-        <div className={`text-xs flex items-start gap-2.5 p-3.5 rounded-xl border leading-relaxed ${
-          isDark 
-            ? 'text-neutral-300 bg-white/[0.03] border-white/[0.06]' 
-            : 'text-neutral-700 bg-black/[0.02] border-black/[0.06]'
-        }`}>
-          <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-          <span>{issue.suggestion}</span>
-        </div>
-      )}
-
-      {issue.code && (
-        <div className={`relative mt-3 rounded-xl border overflow-hidden ${
-          isDark 
-            ? 'bg-[#07070a] border-white/[0.08]' 
-            : 'bg-[#f4f4f7] border-black/[0.08]'
-        }`}>
-          <div className={`flex items-center justify-between px-4 py-2 border-b text-[11px] font-mono ${
-            isDark 
-              ? 'bg-white/[0.02] border-white/[0.06] text-neutral-400' 
-              : 'bg-black/[0.02] border-black/[0.06] text-neutral-600'
-          }`}>
-            <span>Code snippet</span>
-            <button
-              onClick={() => copyCode(issue.code!)}
-              className={`flex items-center gap-1.5 transition-colors cursor-pointer px-2 py-0.5 rounded ${
-                isDark 
-                  ? 'text-neutral-400 hover:text-white hover:bg-white/10' 
-                  : 'text-neutral-600 hover:text-black hover:bg-black/10'
-              }`}
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-emerald-500 font-medium">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy</span>
-                </>
-              )}
-            </button>
+      {/* Clickable Header for Expand/Collapse */}
+      <button 
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full text-left p-4 sm:p-5 flex items-start justify-between gap-4 cursor-pointer focus:outline-none"
+      >
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant={getVariant(issue.severity)} isDark={isDark}>
+              {issue.severity.toUpperCase()}
+            </Badge>
+            <span className={`text-xs font-mono px-2.5 py-0.5 rounded-md border ${
+              isDark 
+                ? 'text-neutral-400 bg-white/[0.05] border-white/10' 
+                : 'text-neutral-600 bg-black/[0.04] border-black/10'
+            }`}>
+              Line {issue.line}
+            </span>
           </div>
-          <pre className={`p-4 text-xs font-mono overflow-x-auto leading-relaxed ${
-            isDark ? 'text-neutral-300' : 'text-neutral-800'
-          }`}>
-            <code>{issue.code}</code>
-          </pre>
+          <p className={`text-sm font-medium leading-relaxed ${
+            isDark ? 'text-neutral-200' : 'text-neutral-800'
+          } ${!isExpanded ? 'line-clamp-1' : ''}`}>
+            {issue.message}
+          </p>
+        </div>
+        <div className={`p-1.5 rounded-lg border transition-transform duration-200 ${
+          isDark ? 'bg-white/[0.05] border-white/10 text-neutral-400' : 'bg-black/[0.05] border-black/10 text-neutral-600'
+        } ${isExpanded ? 'rotate-180' : ''}`}>
+          <ChevronDown className="w-4 h-4" />
+        </div>
+      </button>
+
+      {/* Expanded Content */}
+      {isExpanded && (
+        <div className={`px-4 sm:px-5 pb-5 pt-1 space-y-4 border-t animate-in slide-in-from-top-2 fade-in duration-200 ${
+          isDark ? 'border-white/[0.06]' : 'border-black/[0.06]'
+        }`}>
+          {issue.suggestion && (
+            <div className={`text-xs flex items-start gap-2.5 p-3.5 rounded-xl border leading-relaxed ${
+              isDark 
+                ? 'text-neutral-300 bg-white/[0.03] border-white/[0.06]' 
+                : 'text-neutral-700 bg-black/[0.02] border-black/[0.06]'
+            }`}>
+              <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+              <span>{issue.suggestion}</span>
+            </div>
+          )}
+
+          {issue.code && (
+            <div className={`relative rounded-xl border overflow-hidden ${
+              isDark 
+                ? 'bg-[#07070a] border-white/[0.08]' 
+                : 'bg-[#f4f4f7] border-black/[0.08]'
+            }`}>
+              <div className={`flex items-center justify-between px-4 py-2 border-b text-[11px] font-mono ${
+                isDark 
+                  ? 'bg-white/[0.02] border-white/[0.06] text-neutral-400' 
+                  : 'bg-black/[0.02] border-black/[0.06] text-neutral-600'
+              }`}>
+                <span>Code snippet</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); copyCode(issue.code!); }}
+                  className={`flex items-center gap-1.5 transition-colors cursor-pointer px-2 py-0.5 rounded ${
+                    isDark 
+                      ? 'text-neutral-400 hover:text-white hover:bg-white/10' 
+                      : 'text-neutral-600 hover:text-black hover:bg-black/10'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                      <span className="text-emerald-500 font-medium">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <pre className={`p-4 text-xs font-mono overflow-x-auto leading-relaxed ${
+                isDark ? 'text-neutral-300' : 'text-neutral-800'
+              }`}>
+                <code>{issue.code}</code>
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -199,11 +218,11 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isDark = false 
       {/* Symmetrical Score Ring Card */}
       <ScoreRing score={analysis.score} isDark={isDark} />
 
-      {/* Segmented Pill Tabs (Apple macOS style) */}
-      <div className={`flex items-center p-1.5 border rounded-2xl backdrop-blur-md ${
+      {/* Segmented Pill Tabs (Apple macOS style) - Now Sticky! */}
+      <div className={`sticky top-6 z-10 flex items-center p-1.5 border rounded-2xl backdrop-blur-xl ${
         isDark 
-          ? 'bg-white/[0.04] border-white/[0.08]' 
-          : 'bg-black/[0.04] border-black/[0.08]'
+          ? 'bg-[#0a0a0f]/80 border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.4)]' 
+          : 'bg-[#f8f8fa]/80 border-black/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.05)]'
       }`}>
         <button
           onClick={() => setActiveTab('overview')}
