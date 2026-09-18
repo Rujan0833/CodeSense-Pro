@@ -17,6 +17,10 @@ dist-ssr
 .env.local
 .env.production
 
+# Local SQLite data contains user records and encrypted external tokens
+data/*.sqlite
+data/*.sqlite-*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

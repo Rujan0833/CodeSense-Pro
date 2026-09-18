@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { GitHubPullRequest, GitHubPullRequestFile, GitHubRepository } from './types';
-
-async function githubRequest<T>(token: string, endpoint: string): Promise<T> {
-  const response = await fetch(endpoint, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'GitHub request failed.');
-  return data;
-}
+import type { GitHubPullRequest, GitHubPullRequestFile, GitHubRepository } from '../types';
+import { githubRequest } from '../services/githubService';
+import { githubRoutes } from '../routes';
 
 export function useGitHubRepositories(token: string | null, connected: boolean) {
   const [repositories, setRepositories] = useState<GitHubRepository[]>([]);
@@ -24,7 +17,7 @@ export function useGitHubRepositories(token: string | null, connected: boolean) 
     setIsLoading(true);
     setError(null);
     try {
-      const data = await githubRequest<{ repositories: GitHubRepository[] }>(token, '/api/github/repositories');
+      const data = await githubRequest<{ repositories: GitHubRepository[] }>(token, githubRoutes.repositories);
       setRepositories(data.repositories);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Could not load GitHub repositories.');
@@ -56,7 +49,7 @@ export function useGitHubPullRequests(token: string | null, repository: string |
     try {
       const data = await githubRequest<{ pullRequests: GitHubPullRequest[] }>(
         token,
-        `/api/github/pull-requests?repository=${encodeURIComponent(repository)}`
+        `${githubRoutes.pullRequests}?repository=${encodeURIComponent(repository)}`
       );
       setPullRequests(data.pullRequests);
     } catch (requestError) {
@@ -89,7 +82,7 @@ export function useGitHubPullRequestFiles(token: string | null, repository: stri
     try {
       const data = await githubRequest<{ files: GitHubPullRequestFile[] }>(
         token,
-        `/api/github/pull-request-files?repository=${encodeURIComponent(repository)}&pullNumber=${pullNumber}`
+        `${githubRoutes.pullRequestFiles}?repository=${encodeURIComponent(repository)}&pullNumber=${pullNumber}`
       );
       setFiles(data.files);
     } catch (requestError) {

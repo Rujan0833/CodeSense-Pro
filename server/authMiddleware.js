@@ -21,15 +21,24 @@ import {
   getGitHubRepositories,
   getGitHubPullRequests,
   getGitHubPullRequestFiles,
+  createGitHubPullRequestComment,
   getGitHubUser,
+  GitHubAuthenticationError,
   isGitHubConfigured,
   readOAuthState
 } from './github.js';
 
-function parseBody(req) {
+function parseBody(req, maxBytes = 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let body = '';
+    let bodyBytes = 0;
     req.on('data', chunk => {
+      bodyBytes += Buffer.byteLength(chunk);
+      if (bodyBytes > maxBytes) {
+        reject(new Error('Request body is too large.'));
+        req.destroy();
+        return;
+      }
       body += chunk.toString();
     });
     req.on('end', () => {
@@ -45,6 +54,8 @@ function parseBody(req) {
 
 function sendJson(res, statusCode, data) {
   res.statusCode = statusCode;
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Type', 'application/json');
   res.end(JSON.stringify(data));
 }
@@ -89,6 +100,23 @@ export function createAuthMiddleware() {
 
         if (req.method === 'GET' && url === '/api/github/status') {
           const connection = getGitHubConnection(user.id);
+          if (connection) {
+            try {
+              const accessToken = decryptAccessToken(connection.encrypted_access_token);
+              await getGitHubUser(accessToken);
+            } catch (error) {
+              if (error instanceof GitHubAuthenticationError || error?.code === 'GITHUB_AUTH_INVALID') {
+                deleteGitHubConnection(user.id);
+                return sendJson(res, 200, {
+                  configured: isGitHubConfigured(),
+                  connected: false,
+                  account: null,
+                  reconnectRequired: true,
+                });
+              }
+              throw error;
+            }
+          }
           return sendJson(res, 200, {
             configured: isGitHubConfigured(),
             connected: Boolean(connection),
@@ -139,6 +167,23 @@ export function createAuthMiddleware() {
           const accessToken = decryptAccessToken(connection.encrypted_access_token);
           const files = await getGitHubPullRequestFiles(accessToken, repository, pullNumber);
           return sendJson(res, 200, { files });
+        }
+
+        if (req.method === 'POST' && url === '/api/github/pull-request-comment') {
+          const body = await parseBody(req);
+          const { repository, pullNumber, comment } = body;
+          if (!repository || !/^[^/]+\/[^/]+$/.test(repository) || !Number.isInteger(pullNumber) || pullNumber < 1 || !comment || !comment.trim()) {
+            return sendJson(res, 400, { error: 'A valid repository, pull request, and comment are required.' });
+          }
+          if (comment.length > 10000) {
+            return sendJson(res, 400, { error: 'The review comment must be 10,000 characters or fewer.' });
+          }
+
+          const connection = getGitHubConnection(user.id);
+          if (!connection) return sendJson(res, 409, { error: 'Connect a GitHub account first.' });
+          const accessToken = decryptAccessToken(connection.encrypted_access_token);
+          const result = await createGitHubPullRequestComment(accessToken, repository, pullNumber, comment.trim());
+          return sendJson(res, 201, result);
         }
 
         if (req.method === 'GET' && url === '/api/github/review-history') {
@@ -285,6 +330,9 @@ export function createAuthMiddleware() {
       return next();
     } catch (err) {
       console.error('Auth endpoint error:', err);
+      if (err?.code === 'GITHUB_AUTH_INVALID') {
+        return sendJson(res, 401, { error: err.message });
+      }
       return sendJson(res, 400, { error: err.message || 'Authentication request failed.' });
     }
   };

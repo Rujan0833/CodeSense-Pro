@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { FileCode2, RefreshCw, X } from 'lucide-react';
-import type { GitHubPullRequest, GitHubPullRequestFile } from './types';
-import Badge from '../../components/ui/Badge';
-import Button from '../../components/ui/Button';
-import { IosSpinner } from '../../components/LoadingSpinner';
+import type { GitHubPullRequest, GitHubPullRequestFile } from '../types';
+import Badge from '../../../components/ui/Badge';
+import Button from '../../../components/ui/Button';
+import { IosSpinner } from '../../../components/LoadingSpinner';
 
 interface PullRequestReviewModalProps {
   pullRequest: GitHubPullRequest;

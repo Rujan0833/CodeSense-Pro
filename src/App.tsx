@@ -17,7 +17,7 @@ import AnalysisHistory from './components/AnalysisHistory';
 import AnalysisComparison from './components/AnalysisComparison';
 import HistoryComparePicker from './components/HistoryComparePicker';
 import PrintAnalysisReport from './components/PrintAnalysisReport';
-import GitHubPage from './features/github/GitHubPage';
+import GitHubPage from './features/github/pages/GitHubPage';
 import LoadingSpinner, { IosSpinner } from './components/LoadingSpinner';
 import ErrorDisplay from './components/ErrorDisplay';
 import Button from './components/ui/Button';

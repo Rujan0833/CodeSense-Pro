@@ -1,15 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, FileCode2, GitBranch, Link2, Lock, LogOut, RefreshCw, Search, ShieldCheck, Unlink, X } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Badge from '../../components/ui/Badge';
-import { IosSpinner } from '../../components/LoadingSpinner';
-import { useGitHubPullRequestFiles, useGitHubPullRequests, useGitHubRepositories } from './useGitHub';
-import { useCodeAnalysis } from '../../hooks/useCodeAnalysis';
-import type { AnalysisRequest } from '../../types/analysis';
-import PullRequestAnalysisModal from './PullRequestAnalysisModal';
-import { useGitHubReviewHistory } from '../../hooks/useAnalysisHistory';
+import { useAuth } from '../../../context/AuthContext';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import Badge from '../../../components/ui/Badge';
+import { IosSpinner } from '../../../components/LoadingSpinner';
+import { useGitHubPullRequestFiles, useGitHubPullRequests, useGitHubRepositories } from '../hooks/useGitHub';
+import { useCodeAnalysis } from '../../../hooks/useCodeAnalysis';
+import type { AnalysisRequest } from '../../../types/analysis';
+import PullRequestAnalysisModal from '../components/PullRequestAnalysisModal';
+import { useGitHubReviewHistory } from '../../../hooks/useAnalysisHistory';
+import { githubRoutes } from '../routes';
 
 interface GitHubAccount {
   id: string;
@@ -21,6 +22,7 @@ interface GitHubAccount {
 interface GitHubStatus {
   configured: boolean;
   connected: boolean;
+  reconnectRequired?: boolean;
   account: GitHubAccount | null;
 }
 
@@ -41,6 +43,9 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
   const [selectedFileSha, setSelectedFileSha] = useState<string | null>(null);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [isPostingComment, setIsPostingComment] = useState(false);
+  const [postCommentError, setPostCommentError] = useState<string | null>(null);
+  const [postCommentSuccess, setPostCommentSuccess] = useState<string | null>(null);
   const { repositories, isLoading: isRepositoriesLoading, error: repositoriesError, reload: reloadRepositories } = useGitHubRepositories(token, Boolean(status?.connected));
   const { pullRequests, isLoading: isPullRequestsLoading, error: pullRequestsError, reload: reloadPullRequests } = useGitHubPullRequests(token, selectedRepository);
   const { files, isLoading: isFilesLoading, error: filesError, reload: reloadFiles } = useGitHubPullRequestFiles(token, selectedRepository, selectedPullNumber);
@@ -50,7 +55,7 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
   const loadStatus = useCallback(async () => {
     if (!token) return;
     try {
-      const response = await fetch('/api/github/status', {
+      const response = await fetch(githubRoutes.status, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -133,6 +138,8 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
     const language = getLanguage(selectedFile.filename);
     const patchContent = `File: ${selectedFile.filename}\nStatus: ${selectedFile.status}\n\n${selectedFile.patch}`;
     setReviewError(null);
+    setPostCommentError(null);
+    setPostCommentSuccess(null);
     analyzeCode({ code: patchContent, language } as AnalysisRequest, {
       onSuccess: (analysis) => {
         if (selectedRepository && selectedPullNumber && selectedFile) {
@@ -147,6 +154,27 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
         setIsAnalysisModalOpen(true);
       },
     });
+  };
+
+  const handlePostComment = async (comment: string) => {
+    if (!token || !selectedRepository || !selectedPullNumber) return;
+    setIsPostingComment(true);
+    setPostCommentError(null);
+    setPostCommentSuccess(null);
+    try {
+      const response = await fetch(githubRoutes.pullRequestComment, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ repository: selectedRepository, pullNumber: selectedPullNumber, comment }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not post the review comment to GitHub.');
+      setPostCommentSuccess('Review posted to GitHub successfully.');
+    } catch (requestError) {
+      setPostCommentError(requestError instanceof Error ? requestError.message : 'Could not post the review comment to GitHub.');
+    } finally {
+      setIsPostingComment(false);
+    }
   };
 
   return (
@@ -231,9 +259,11 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
                 <GitBranch className="w-7 h-7" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold">Connect your GitHub account</h2>
+                <h2 className="text-lg font-semibold">{status?.reconnectRequired ? 'Reconnect your GitHub account' : 'Connect your GitHub account'}</h2>
                 <p className={`mt-2 text-sm leading-relaxed ${isDark ? 'text-neutral-400' : 'text-neutral-600'}`}>
-                  Start with a secure OAuth connection. Your repositories and pull requests will appear once connected.
+                  {status?.reconnectRequired
+                    ? 'GitHub rejected the saved authorization. Reconnect to restore repository access. Your CodeSense account is still signed in.'
+                    : 'Start with a secure OAuth connection. Your repositories and pull requests will appear once connected.'}
                 </p>
               </div>
 
@@ -325,6 +355,8 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
                             setSelectedPullNumber(null);
                             setIsAnalysisModalOpen(false);
                             setSelectedFileSha(null);
+                            setPostCommentError(null);
+                            setPostCommentSuccess(null);
                             resetReview();
                           }}
                           className={`block rounded-2xl border p-4 transition-all duration-200 ${
@@ -364,7 +396,7 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
                     </Badge>
                   </div>
                   {selectedRepository && (
-                    <Button variant="secondary" size="sm" isDark={isDark} onClick={() => setSelectedRepository(null)} title="Deselect repository">
+                    <Button variant="secondary" size="sm" isDark={isDark} onClick={() => { setSelectedRepository(null); setSelectedPullNumber(null); setSelectedFileSha(null); setPostCommentError(null); setPostCommentSuccess(null); }} title="Deselect repository">
                       <X className="w-3.5 h-3.5" />
                     </Button>
                   )}
@@ -411,6 +443,8 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
                                   setSelectedFileSha(null);
                                   setIsAnalysisModalOpen(false);
                                   setReviewError(null);
+                                  setPostCommentError(null);
+                                  setPostCommentSuccess(null);
                                   resetReview();
                                 }}
                                 className={`w-full text-left block rounded-2xl border p-4 transition-all duration-200 ${
@@ -475,7 +509,7 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
                             ) : (
                               <div className="space-y-2">
                                 {files.map((file) => (
-                                  <details key={file.sha} onClick={() => { setSelectedFileSha(file.sha); setReviewError(null); resetReview(); setIsAnalysisModalOpen(false); }} className={`rounded-2xl border ${selectedFileSha === file.sha ? isDark ? 'border-white/25 bg-white/[0.06]' : 'border-black/20 bg-black/[0.04]' : isDark ? 'border-white/[0.08] bg-white/[0.02]' : 'border-black/[0.08] bg-black/[0.01]'}`}>
+                                  <details key={file.sha} onClick={() => { setSelectedFileSha(file.sha); setReviewError(null); setPostCommentError(null); setPostCommentSuccess(null); resetReview(); setIsAnalysisModalOpen(false); }} className={`rounded-2xl border ${selectedFileSha === file.sha ? isDark ? 'border-white/25 bg-white/[0.06]' : 'border-black/20 bg-black/[0.04]' : isDark ? 'border-white/[0.08] bg-white/[0.02]' : 'border-black/[0.08] bg-black/[0.01]'}`}>
                                     <summary className="flex cursor-pointer list-none items-center gap-3 p-4">
                                       <FileCode2 className={`w-4 h-4 shrink-0 ${isDark ? 'text-neutral-400' : 'text-neutral-500'}`} />
                                       <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{file.filename}</span>
@@ -516,7 +550,13 @@ const GitHubPage: React.FC<GitHubPageProps> = ({ isDark, onNavigateStudio }) => 
           analysis={reviewAnalysis}
           filename={selectedFile.filename}
           code={selectedFile.patch || ''}
+          repository={selectedRepository || ''}
+          pullNumber={selectedPullNumber || 0}
           isDark={isDark}
+          isPosting={isPostingComment}
+          postError={postCommentError}
+          postSuccess={postCommentSuccess}
+          onPostComment={handlePostComment}
           onClose={() => setIsAnalysisModalOpen(false)}
         />
       )}

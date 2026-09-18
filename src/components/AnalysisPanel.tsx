@@ -247,10 +247,10 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isDark = false,
       <ScoreRing score={analysis.score} isDark={isDark} />
 
       {/* Segmented Pill Tabs (Apple macOS style) - Now Sticky! */}
-      <div className={`sticky top-6 z-10 flex items-center p-1.5 border rounded-2xl backdrop-blur-xl ${
+      <div className={`sticky top-0 z-20 flex items-center p-1.5 border rounded-2xl backdrop-blur-xl ${
         isDark 
-          ? 'bg-[#0a0a0f]/80 border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.4)]' 
-          : 'bg-[#f8f8fa]/80 border-black/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.05)]'
+          ? 'bg-[#0a0a0f] border-white/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.4)]'
+          : 'bg-[#f8f8fa] border-black/[0.08] shadow-[0_8px_30px_rgba(0,0,0,0.05)]'
       }`}>
         <button
           onClick={() => setActiveTab('overview')}

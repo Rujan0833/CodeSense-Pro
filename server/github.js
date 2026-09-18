@@ -13,13 +13,21 @@ function getCallbackUrl() {
 }
 
 function getEncryptionSecret() {
-  return process.env.GITHUB_ENCRYPTION_KEY || getClientSecret();
+  return process.env.GITHUB_ENCRYPTION_KEY;
 }
 
 function key() {
   const encryptionSecret = getEncryptionSecret();
   if (!encryptionSecret) throw new Error('GITHUB_ENCRYPTION_KEY is not configured.');
   return createHmac('sha256', encryptionSecret).update('codesense-github-token').digest();
+}
+
+export class GitHubAuthenticationError extends Error {
+  constructor() {
+    super('GitHub authorization is invalid or expired. Reconnect your GitHub account.');
+    this.name = 'GitHubAuthenticationError';
+    this.code = 'GITHUB_AUTH_INVALID';
+  }
 }
 
 export function isGitHubConfigured() {
@@ -69,8 +77,12 @@ export async function getGitHubUser(accessToken) {
   const response = await fetch('https://api.github.com/user', {
     headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${accessToken}`, 'User-Agent': 'CodeSense' },
   });
-  if (!response.ok) throw new Error('Could not read the GitHub account.');
-  return response.json();
+  const data = await response.json();
+  if (!response.ok) {
+    if (response.status === 401) throw new GitHubAuthenticationError();
+    throw new Error(data.message || 'Could not read the GitHub account.');
+  }
+  return data;
 }
 
 export async function getGitHubRepositories(accessToken) {
@@ -81,7 +93,17 @@ export async function getGitHubRepositories(accessToken) {
     const response = await fetch(`https://api.github.com/user/repos?sort=updated&per_page=100&page=${page}`, {
       headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${accessToken}`, 'User-Agent': 'CodeSense' },
     });
-    if (!response.ok) throw new Error('Could not load GitHub repositories.');
+    if (!response.ok) {
+      if (response.status === 401) throw new GitHubAuthenticationError();
+      let message = '';
+      try {
+        const data = await response.json();
+        message = data.message ? ` (${data.message})` : '';
+      } catch {
+        // Keep the generic error when GitHub does not return JSON.
+      }
+      throw new Error(`Could not load GitHub repositories.${message}`);
+    }
 
     const batch = await response.json();
     repositories.push(...batch);
@@ -155,4 +177,24 @@ export async function getGitHubPullRequestFiles(accessToken, repository, pullNum
     patch: file.patch || null,
     blobUrl: file.blob_url,
   }));
+}
+
+export async function createGitHubPullRequestComment(accessToken, repository, pullNumber, body) {
+  const response = await fetch(`https://api.github.com/repos/${repository}/issues/${pullNumber}/comments`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/vnd.github+json',
+      Authorization: `Bearer ${accessToken}`,
+      'User-Agent': 'CodeSense',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ body }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Could not post the review comment to GitHub.');
+  }
+
+  return { id: data.id, htmlUrl: data.html_url };
 }
