@@ -1,3 +1,4 @@
+
 @import "tailwindcss";
 
 @layer base {
@@ -16,6 +17,132 @@
 
   code, pre {
     font-family: var(--font-mono);
+  }
+}
+
+.print-report {
+  display: none;
+}
+
+.comparison-modal-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.32) transparent;
+  scrollbar-gutter: stable;
+}
+
+.comparison-modal-content::-webkit-scrollbar {
+  width: 5px;
+}
+
+.comparison-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.comparison-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.32);
+  border-radius: 9999px;
+}
+
+.comparison-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+.github-main {
+  min-height: calc(100vh - 74px);
+  overflow-y: auto;
+}
+
+.github-panel-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 520px;
+  max-height: calc(100vh - 220px);
+}
+
+.github-panel-card .github-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.32) transparent;
+  scrollbar-gutter: stable;
+}
+
+.github-panel-card .github-panel-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.github-panel-card .github-panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.github-panel-card .github-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.32);
+  border-radius: 9999px;
+}
+
+.github-panel-card .github-panel-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  html,
+  body,
+  #root,
+  .studio-shell,
+  .studio-shell main,
+  .studio-print-target,
+  .studio-results-column,
+  .studio-results-card,
+  .analysis-panel {
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell {
+    background: white !important;
+    color: black !important;
+  }
+
+  .studio-shell > * {
+    display: none !important;
+  }
+
+  .studio-shell .print-report {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .studio-shell .print-report {
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+    font-family: Arial, sans-serif;
+  }
+
+  .print-report h1 { font-size: 24px; margin-bottom: 8px; }
+  .print-report h2 { font-size: 17px; margin: 20px 0 8px; }
+  .print-report h3 { font-size: 14px; margin: 12px 0 4px; }
+  .print-report p, .print-report li { font-size: 12px; line-height: 1.5; }
+  .print-report pre {
+    white-space: pre-wrap;
+    padding: 10px;
+    background: #f4f4f7;
+    border: 1px solid #ddd;
+    font: 11px/1.5 monospace;
   }
 }
 

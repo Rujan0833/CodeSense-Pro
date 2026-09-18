@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export type AppRoute = '/' | '/studio' | '/login' | '/signup';
+export type AppRoute = '/' | '/studio' | '/github' | '/history' | '/login' | '/signup';
 
 function getNormalizedPath(): AppRoute {
   if (typeof window === 'undefined') return '/';
   const path = window.location.pathname.toLowerCase();
   if (path === '/studio') return '/studio';
+  if (path === '/github') return '/github';
+  if (path === '/history') return '/history';
   if (path === '/login') return '/login';
   if (path === '/signup') return '/signup';
   return '/';

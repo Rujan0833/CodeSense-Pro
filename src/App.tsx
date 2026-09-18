@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { 
   Code2,  
@@ -8,22 +8,32 @@ import {
   Sun,
   Moon,
   Home,
-  LogOut
+  LogOut,
+  GitBranch
 } from 'lucide-react';
 import CodeEditor from './components/CodeEditor';
 import AnalysisPanel from './components/AnalysisPanel';
+import AnalysisHistory from './components/AnalysisHistory';
+import AnalysisComparison from './components/AnalysisComparison';
+import HistoryComparePicker from './components/HistoryComparePicker';
+import PrintAnalysisReport from './components/PrintAnalysisReport';
+import GitHubPage from './features/github/GitHubPage';
 import LoadingSpinner, { IosSpinner } from './components/LoadingSpinner';
 import ErrorDisplay from './components/ErrorDisplay';
 import Button from './components/ui/Button';
 import Card from './components/ui/Card';
 import Badge from './components/ui/Badge';
 import ProductPage from './components/ProductPage';
+import HistoryPage from './components/HistoryPage';
 import AuthModal from './components/AuthModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useRouter } from './lib/router';
 import { useCodeAnalysis } from './hooks/useCodeAnalysis';
+import { useAnalysisHistory } from './hooks/useAnalysisHistory';
+import { useStudioSession } from './hooks/useStudioSession';
 import { detectLanguage, SUPPORTED_LANGUAGES } from './lib/detector';
-import type { AnalysisRequest } from './types/analysis';
+import type { AnalysisHistoryEntry, AnalysisRequest } from './types/analysis';
+import { compareAnalyses } from './lib/compareAnalysis';
 
 const queryClient = new QueryClient();
 
@@ -111,23 +121,41 @@ export async function safeExecute<T>(fn: () => Promise<T>): Promise<Result<T>> {
 function StudioContent({ 
   isDark, 
   onToggleTheme,
-  onNavigateHome
+  onNavigateHome,
+  onNavigateGithub,
+  onNavigateHistory
 }: { 
   isDark: boolean; 
   onToggleTheme: () => void;
   onNavigateHome: () => void;
+  onNavigateGithub: () => void;
+  onNavigateHistory: () => void;
 }) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const { navigate } = useRouter();
 
-  const [code, setCode] = useState(PRESETS[0].code);
+  const {
+    code,
+    snapshot: savedSnapshot,
+    updateCode: setCode,
+    saveSnapshot,
+    clearSession,
+  } = useStudioSession(user?.id || 'anonymous', PRESETS[0].code);
   const [activePresetId, setActivePresetId] = useState('memory-leak');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [selectedHistory, setSelectedHistory] = useState<AnalysisHistoryEntry | null>(null);
+  const [comparison, setComparison] = useState<ReturnType<typeof compareAnalyses> | null>(null);
+  const [isComparePickerOpen, setIsComparePickerOpen] = useState(false);
+  const lastAnalyzedSignature = useRef<string | null>(null);
 
   // Auto-detect programming language based on code input
   const detectedLanguage = useMemo(() => detectLanguage(code), [code]);
+  const hasCode = code.trim().length > 0;
+  const editorLanguage = hasCode ? detectedLanguage : 'plaintext';
 
   const { mutate: analyzeCode, data: analysis, isPending, error, reset: resetAnalysis } = useCodeAnalysis();
+  const { history, isLoading: isHistoryLoading, saveHistory, deleteHistory } = useAnalysisHistory(token);
+  const displayedAnalysis = selectedHistory?.analysis || analysis || savedSnapshot?.analysis;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -140,20 +168,34 @@ function StudioContent({
       return;
     }
 
+    setSelectedHistory(null);
     const request: AnalysisRequest = {
       code,
       language: detectedLanguage
     };
 
-    analyzeCode(request);
-  }, [code, detectedLanguage, analyzeCode]);
+    analyzeCode(request, {
+      onSuccess: (result) => {
+        const signature = `${detectedLanguage}:${code}`;
+        if (lastAnalyzedSignature.current === signature) return;
+
+        lastAnalyzedSignature.current = signature;
+        const snapshot = { code, language: detectedLanguage, analysis: result, createdAt: new Date().toISOString() };
+        saveSnapshot(snapshot);
+        setComparison(null);
+        saveHistory.mutate({ code, language: detectedLanguage, analysis: result });
+      },
+    });
+  }, [code, detectedLanguage, analyzeCode, saveHistory, saveSnapshot]);
 
   const handleClear = useCallback(() => {
-    setCode('');
     setActivePresetId('');
     resetAnalysis();
+    setSelectedHistory(null);
+    setComparison(null);
+    clearSession();
     showToast('Workspace cleared');
-  }, [resetAnalysis]);
+  }, [clearSession, resetAnalysis]);
 
   // Global Keyboard Shortcuts (⌘↵ / Ctrl↵ to Analyze, ⌘K / Ctrl+K to Clear)
   useEffect(() => {
@@ -178,7 +220,31 @@ function StudioContent({
     setCode(preset.code);
     setActivePresetId(preset.id);
     resetAnalysis();
+    setSelectedHistory(null);
+    setComparison(null);
     showToast(`Loaded: ${preset.name}`);
+  };
+
+  const handleSelectHistory = (entry: AnalysisHistoryEntry) => {
+    setCode(entry.code);
+    setActivePresetId('');
+    setSelectedHistory(entry);
+    lastAnalyzedSignature.current = `${entry.language}:${entry.code}`;
+    showToast(`Loaded analysis from ${new Date(entry.createdAt).toLocaleDateString()}`);
+  };
+
+  const handleOpenComparePicker = () => {
+    setIsComparePickerOpen(true);
+  };
+
+  const handleCompareEntries = (previous: AnalysisHistoryEntry, current: AnalysisHistoryEntry) => {
+    setIsComparePickerOpen(false);
+    setComparison(compareAnalyses(previous, {
+      code: current.code,
+      language: current.language,
+      analysis: current.analysis,
+      createdAt: current.createdAt,
+    }));
   };
 
   // Keyboard shortcut listener: Cmd/Ctrl + Enter
@@ -194,11 +260,19 @@ function StudioContent({
   }, [handleAnalyze]);
 
   return (
-    <div className={`relative min-h-screen font-sans transition-colors duration-300 ${
+    <div className={`studio-shell relative min-h-screen font-sans transition-colors duration-300 ${
       isDark 
         ? 'bg-[#050508] text-neutral-100 selection:bg-white/20 selection:text-white' 
         : 'bg-[#f5f5f7] text-[#1d1d1f] selection:bg-black/10 selection:text-black'
     }`}>
+
+      {displayedAnalysis && (
+        <PrintAnalysisReport
+          analysis={displayedAnalysis}
+          code={code}
+          createdAt={selectedHistory?.createdAt}
+        />
+      )}
 
 
       {/* Floating Toast Notification */}
@@ -258,6 +332,20 @@ function StudioContent({
 
             {/* Right Quick Actions: Home link, User profile badge, Theme Switcher, Sign Out */}
             <div className="flex items-center gap-3">
+              {/* Home / Product Page Link */}
+              <button
+                onClick={onNavigateGithub}
+                className={`hidden sm:flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-colors cursor-pointer ${
+                  isDark
+                    ? 'text-neutral-300 hover:text-white bg-white/[0.03] border-white/10'
+                    : 'text-neutral-700 hover:text-black bg-black/[0.03] border-black/10'
+                }`}
+                title="Connect GitHub"
+              >
+                <GitBranch className="w-3.5 h-3.5" />
+                <span>GitHub</span>
+              </button>
+
               {/* Home / Product Page Link */}
               <button
                 onClick={onNavigateHome}
@@ -377,7 +465,7 @@ function StudioContent({
 
 
         {/* Side-by-Side Asymmetrical Studio & Results Grid (Left: Code Studio wider 7 cols, Right: Results 5 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-start">
+        <div className="studio-print-target grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-start">
           {/* Left Column: Code Studio (Wider 7 cols / ~58%) */}
           <div className="flex flex-col space-y-5 lg:col-span-7">
             {/* Header with Title & Auto-Detected Language Pill */}
@@ -395,8 +483,8 @@ function StudioContent({
                 }`}>
                   Auto-detected
                 </span>
-                <Badge variant="success" isDark={isDark} withDot={true}>
-                  {detectedLanguage.toUpperCase()}
+                <Badge variant={hasCode ? 'success' : 'default'} isDark={isDark} withDot={hasCode}>
+                  {hasCode ? detectedLanguage.toUpperCase() : 'NO CODE'}
                 </Badge>
               </div>
             </div>
@@ -408,8 +496,11 @@ function StudioContent({
               <div className="flex-1">
                 <CodeEditor
                   code={code}
-                  language={detectedLanguage}
-                  onChange={(value) => setCode(value || '')}
+                  language={editorLanguage}
+                  onChange={(value) => {
+                    setCode(value || '');
+                    setSelectedHistory(null);
+                  }}
                   height="480px"
                   isAnalyzing={isPending}
                   isDark={isDark}
@@ -445,17 +536,17 @@ function StudioContent({
           </div>
 
           {/* Right Column: Results Section (Focused 5 cols / ~42%) */}
-          <div className="flex flex-col space-y-5 lg:col-span-5">
+          <div className="studio-results-column flex flex-col space-y-5 lg:col-span-5">
             {/* Header with Title & Status badge */}
-            <div className="flex items-center justify-between px-2">
+            <div className="studio-results-header flex items-center justify-between px-2">
               <div className="flex items-center gap-2.5">
                 <h2 className={`text-sm font-semibold uppercase tracking-wider ${
                   isDark ? 'text-neutral-300' : 'text-neutral-700'
                 }`}>
                   Results Section
                 </h2>
-                <Badge variant={isPending ? 'warning' : analysis ? 'success' : 'default'} isDark={isDark}>
-                  {isPending ? 'Analyzing' : analysis ? 'Report Ready' : 'Standby'}
+                <Badge variant={isPending ? 'warning' : displayedAnalysis ? 'success' : 'default'} isDark={isDark}>
+                  {isPending ? 'Analyzing' : displayedAnalysis ? 'Report Ready' : 'Standby'}
                 </Badge>
               </div>
               <span className={`text-xs font-mono ${isDark ? 'text-neutral-500' : 'text-neutral-400'}`}>
@@ -464,7 +555,7 @@ function StudioContent({
             </div>
 
             {/* Symmetrical Right Card Container */}
-            <Card isDark={isDark} tiltEnabled={false} className={`flex-1 flex flex-col p-6 sm:p-7 rounded-3xl min-h-[580px] ${
+            <Card isDark={isDark} tiltEnabled={false} className={`studio-results-card flex-1 flex flex-col p-6 sm:p-7 rounded-3xl min-h-[580px] ${
               isDark ? 'bg-[#09090e]/90 border-white/10' : 'bg-white/90 border-black/10'
             }`}>
               <div className="flex-1 flex flex-col justify-center">
@@ -477,12 +568,45 @@ function StudioContent({
                     isDark={isDark}
                   />
                 ) : (
-                  <AnalysisPanel analysis={analysis || null} isDark={isDark} />
+                  <AnalysisPanel
+                    analysis={displayedAnalysis || null}
+                    code={code}
+                    createdAt={selectedHistory?.createdAt || savedSnapshot?.createdAt}
+                    isDark={isDark}
+                  />
                 )}
               </div>
             </Card>
           </div>
         </div>
+
+        <AnalysisHistory
+          entries={history.slice(0, 4)}
+          isLoading={isHistoryLoading}
+          isDark={isDark}
+          onSelect={handleSelectHistory}
+          onCompare={handleOpenComparePicker}
+          onDelete={(historyId) => deleteHistory.mutate(historyId)}
+          deletingId={deleteHistory.isPending ? deleteHistory.variables : undefined}
+                  onShowAll={onNavigateHistory}
+        />
+
+        {isComparePickerOpen && (
+          <HistoryComparePicker
+            entries={history}
+            isDark={isDark}
+            onClose={() => setIsComparePickerOpen(false)}
+            onCompare={handleCompareEntries}
+          />
+        )}
+
+        {comparison && (
+          <AnalysisComparison
+            comparison={comparison}
+            isDark={isDark}
+            onClose={() => setComparison(null)}
+          />
+        )}
 
         {/* Supported Languages Shelf in the Bottom Section */}
         <div className="space-y-4 text-center pt-6">
@@ -493,13 +617,13 @@ function StudioContent({
               Supported Languages & Runtimes
             </h3>
             <p className={`text-xs ${isDark ? 'text-neutral-500' : 'text-neutral-500'}`}>
-              Auto-detected in real time as you write or paste code
+              {hasCode ? 'Auto-detected in real time as you write or paste code' : 'Enter code to detect its language'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-4xl mx-auto">
             {SUPPORTED_LANGUAGES.map((lang) => {
-              const isCurrent = lang.id === detectedLanguage;
+              const isCurrent = hasCode && lang.id === detectedLanguage;
               return (
                 <div
                   key={lang.id}
@@ -603,7 +727,7 @@ function MainApp() {
   useEffect(() => {
     if (isLoading) return;
 
-    if (currentRoute === '/studio' && !isAuthenticated) {
+    if ((currentRoute === '/studio' || currentRoute === '/github' || currentRoute === '/history') && !isAuthenticated) {
       navigate('/');
       openAuthModal('signin');
     } else if ((currentRoute === '/login' || currentRoute === '/signup') && isAuthenticated) {
@@ -632,7 +756,7 @@ function MainApp() {
   };
 
   // Smooth loading state while validating session on protected route during hard refresh
-  if (isLoading && currentRoute === '/studio' && token) {
+  if (isLoading && (currentRoute === '/studio' || currentRoute === '/github' || currentRoute === '/history') && token) {
     return (
       <div className={`min-h-screen flex items-center justify-center transition-colors duration-300 ${
         isDark ? 'bg-[#050508]' : 'bg-[#f5f5f7]'
@@ -650,6 +774,15 @@ function MainApp() {
           isDark={isDark} 
           onToggleTheme={handleToggleTheme} 
           onNavigateHome={() => navigate('/')}
+          onNavigateGithub={() => navigate('/github')}
+          onNavigateHistory={() => navigate('/history')}
+        />
+      ) : currentRoute === '/history' && isAuthenticated ? (
+        <HistoryPage isDark={isDark} />
+      ) : currentRoute === '/github' && isAuthenticated ? (
+        <GitHubPage
+          isDark={isDark}
+          onNavigateStudio={() => navigate('/studio')}
         />
       ) : (
         <ProductPage 

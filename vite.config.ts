@@ -1,6 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig, type Plugin } from 'vite'
-// @ts-expect-error - local server middleware
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { createAuthMiddleware } from './server/authMiddleware.js'
 
 function sqliteAuthPlugin(): Plugin {
@@ -16,6 +15,11 @@ function sqliteAuthPlugin(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), sqliteAuthPlugin()]
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  Object.assign(process.env, env);
+
+  return {
+    plugins: [react(), sqliteAuthPlugin()]
+  };
 })

@@ -8,14 +8,20 @@ import {
   Lightbulb, 
   ShieldAlert, 
   ArrowUpRight,
-  ChevronDown
+  ChevronDown,
+  Download,
+  Printer
 } from 'lucide-react';
 import Badge from './ui/Badge';
 import ScoreGauge from './ui/ScoreGauge';
+import Button from './ui/Button';
+import { downloadMarkdownReport } from '../lib/exportReport';
 
 interface AnalysisPanelProps {
   analysis: CodeAnalysis | null;
   isDark?: boolean;
+  code?: string;
+  createdAt?: string;
 }
 
 const ScoreRing: React.FC<{ score: number; isDark?: boolean }> = ({ score, isDark = false }) => {
@@ -177,7 +183,7 @@ const IssueCard: React.FC<{ issue: CodeIssue; isDark?: boolean }> = ({ issue, is
   );
 };
 
-const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isDark = false }) => {
+const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isDark = false, code = '', createdAt }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'issues' | 'suggestions'>('overview');
 
   if (!analysis) {
@@ -214,7 +220,29 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isDark = false 
   const suggestionCount = analysis.suggestions?.length || 0;
 
   return (
-    <div className="space-y-6">
+    <div className="analysis-panel space-y-6">
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          isDark={isDark}
+          onClick={() => downloadMarkdownReport(analysis, code, createdAt)}
+          title="Download Markdown report"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Markdown</span>
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          isDark={isDark}
+          onClick={() => window.print()}
+          title="Print or save as PDF"
+        >
+          <Printer className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Print / PDF</span>
+        </Button>
+      </div>
       {/* Symmetrical Score Ring Card */}
       <ScoreRing score={analysis.score} isDark={isDark} />
 
@@ -425,6 +453,7 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isDark = false 
         <span>Engine: GPT-4 Intelligence</span>
         <span className="capitalize">{analysis.language}</span>
       </div>
+
     </div>
   );
 };
