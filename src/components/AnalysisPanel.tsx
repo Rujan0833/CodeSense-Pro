@@ -9,8 +9,7 @@ import {
   ShieldAlert, 
   ArrowUpRight,
   ChevronDown,
-  Download,
-  Printer
+  Download
 } from 'lucide-react';
 import Badge from './ui/Badge';
 import ScoreGauge from './ui/ScoreGauge';
@@ -231,16 +230,6 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ analysis, isDark = false,
         >
           <Download className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Markdown</span>
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          isDark={isDark}
-          onClick={() => window.print()}
-          title="Print or save as PDF"
-        >
-          <Printer className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Print / PDF</span>
         </Button>
       </div>
       {/* Symmetrical Score Ring Card */}

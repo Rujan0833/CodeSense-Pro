@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { 
-  Code2,  
   RotateCcw, 
   Play, 
   CheckCircle,
@@ -11,6 +10,7 @@ import {
   LogOut,
   GitBranch
 } from 'lucide-react';
+import BrandLogo from './components/BrandLogo';
 import CodeEditor from './components/CodeEditor';
 import AnalysisPanel from './components/AnalysisPanel';
 import AnalysisHistory from './components/AnalysisHistory';
@@ -25,6 +25,13 @@ import Card from './components/ui/Card';
 import Badge from './components/ui/Badge';
 import ProductPage from './components/ProductPage';
 import HistoryPage from './components/HistoryPage';
+import ProjectFileList from './features/project-analysis/components/ProjectFileList';
+import ProjectAnalysisSummary from './features/project-analysis/components/ProjectAnalysisSummary';
+import HistoryAnalysisModal from './components/HistoryAnalysisModal';
+import { useProjectFiles } from './features/project-analysis/hooks/useProjectFiles';
+import { useProjectAnalysis } from './features/project-analysis/hooks/useProjectAnalysis';
+import type { ProjectFileResult } from './features/project-analysis/hooks/useProjectAnalysis';
+import type { ProjectFile } from './features/project-analysis/types';
 import AuthModal from './components/AuthModal';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useRouter } from './lib/router';
@@ -146,7 +153,11 @@ function StudioContent({
   const [selectedHistory, setSelectedHistory] = useState<AnalysisHistoryEntry | null>(null);
   const [comparison, setComparison] = useState<ReturnType<typeof compareAnalyses> | null>(null);
   const [isComparePickerOpen, setIsComparePickerOpen] = useState(false);
+  const [selectedProjectFileId, setSelectedProjectFileId] = useState<string | null>(null);
+  const [selectedProjectResult, setSelectedProjectResult] = useState<{ path: string; analysis: ProjectFileResult['analysis']; fileId: string } | null>(null);
   const lastAnalyzedSignature = useRef<string | null>(null);
+  const projectUserId = user?.id || 'anonymous';
+  const { files: projectFiles, error: projectFilesError, addFiles, removeFile, updateFile, clearFiles } = useProjectFiles(projectUserId);
 
   // Auto-detect programming language based on code input
   const detectedLanguage = useMemo(() => detectLanguage(code), [code]);
@@ -155,7 +166,14 @@ function StudioContent({
 
   const { mutate: analyzeCode, data: analysis, isPending, error, reset: resetAnalysis } = useCodeAnalysis();
   const { history, isLoading: isHistoryLoading, saveHistory, deleteHistory } = useAnalysisHistory(token);
+  const handleProjectFileAnalyzed = useCallback((file: ProjectFile, fileAnalysis: ProjectFileResult['analysis']) => {
+    saveHistory.mutate({ code: file.content, language: file.language, analysis: fileAnalysis });
+  }, [saveHistory]);
+  const { results: projectResults, isAnalyzing: isProjectAnalyzing, completedCount: projectCompletedCount, error: projectAnalysisError, status: projectAnalysisStatus, projectScore, issueCount: projectIssueCount, riskCounts: projectRiskCounts, analyzeProject, cancelAnalysis, clearResults } = useProjectAnalysis({ onFileAnalyzed: handleProjectFileAnalyzed, userId: projectUserId });
   const displayedAnalysis = selectedHistory?.analysis || analysis || savedSnapshot?.analysis;
+  const selectedProjectFile = selectedProjectResult
+    ? projectFiles.find((file) => file.id === selectedProjectResult.fileId)
+    : null;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -194,8 +212,30 @@ function StudioContent({
     setSelectedHistory(null);
     setComparison(null);
     clearSession();
+    cancelAnalysis();
+    clearResults();
+    clearFiles();
+    setSelectedProjectFileId(null);
+    setSelectedProjectResult(null);
     showToast('Workspace cleared');
-  }, [clearSession, resetAnalysis]);
+  }, [cancelAnalysis, clearFiles, clearResults, clearSession, resetAnalysis]);
+
+  const handleSelectProjectFile = (file: ProjectFile) => {
+    setSelectedProjectFileId(file.id);
+    setCode(file.content);
+    setActivePresetId('');
+    setSelectedHistory(null);
+    resetAnalysis();
+    setComparison(null);
+  };
+
+  const handleRemoveProjectFile = (fileId: string) => {
+    removeFile(fileId);
+    if (selectedProjectFileId === fileId) {
+      setSelectedProjectFileId(null);
+      resetAnalysis();
+    }
+  };
 
   // Global Keyboard Shortcuts (⌘↵ / Ctrl↵ to Analyze, ⌘K / Ctrl+K to Clear)
   useEffect(() => {
@@ -274,6 +314,17 @@ function StudioContent({
         />
       )}
 
+      {selectedProjectResult && selectedProjectFile && (
+        <HistoryAnalysisModal
+          title={selectedProjectResult.path}
+          eyebrow="Project file analysis"
+          analysis={selectedProjectResult.analysis}
+          code={selectedProjectFile.content}
+          isDark={isDark}
+          onClose={() => setSelectedProjectResult(null)}
+        />
+      )}
+
 
       {/* Floating Toast Notification */}
       {toastMessage && (
@@ -304,29 +355,7 @@ function StudioContent({
                 className="flex items-center gap-3 cursor-pointer text-left group"
                 title="Back to Product Page"
               >
-                <div className={`w-9 h-9 rounded-xl p-0.5 flex items-center justify-center shadow-md transition-transform group-hover:scale-105 ${
-                  isDark 
-                    ? 'bg-gradient-to-tr from-white to-neutral-300' 
-                    : 'bg-gradient-to-tr from-[#1d1d1f] to-neutral-600'
-                }`}>
-                  <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${
-                    isDark ? 'bg-[#09090e]' : 'bg-white'
-                  }`}>
-                    <Code2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`} />
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`font-semibold tracking-tight text-base ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`}>
-                    CodeSense
-                  </span>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                    isDark 
-                      ? 'bg-white/10 text-neutral-300 border-white/15' 
-                      : 'bg-black/[0.05] text-neutral-700 border-black/10'
-                  }`}>
-                    Studio
-                  </span>
-                </div>
+                <BrandLogo isDark={isDark} badge="Studio" />
               </button>
             </div>
 
@@ -460,6 +489,34 @@ function StudioContent({
               );
             })}
           </div>
+
+          <ProjectFileList
+            files={projectFiles}
+            error={projectFilesError}
+            isDark={isDark}
+            selectedFileId={selectedProjectFileId}
+            onAddFiles={(incoming) => { void addFiles(incoming); }}
+            onSelect={handleSelectProjectFile}
+            onRemove={handleRemoveProjectFile}
+            onClear={() => { cancelAnalysis(); clearResults(); clearFiles(); setSelectedProjectFileId(null); setSelectedProjectResult(null); }}
+            isAnalyzing={isProjectAnalyzing}
+            onAnalyze={() => void analyzeProject(projectFiles)}
+            onCancel={cancelAnalysis}
+          >
+            <ProjectAnalysisSummary
+              results={projectResults}
+              fileCount={projectFiles.length}
+              completedCount={projectCompletedCount}
+              isAnalyzing={isProjectAnalyzing}
+              error={projectAnalysisError}
+              projectScore={projectScore}
+              issueCount={projectIssueCount}
+              riskCounts={projectRiskCounts}
+              status={projectAnalysisStatus}
+              isDark={isDark}
+              onSelectResult={setSelectedProjectResult}
+            />
+          </ProjectFileList>
         </div>
 
 
@@ -499,6 +556,7 @@ function StudioContent({
                   language={editorLanguage}
                   onChange={(value) => {
                     setCode(value || '');
+                    if (selectedProjectFileId) updateFile(selectedProjectFileId, value || '');
                     setSelectedHistory(null);
                   }}
                   height="480px"

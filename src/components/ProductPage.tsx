@@ -8,6 +8,7 @@ import ScrollReveal from './ui/ScrollReveal';
 import AnimatedCounter from './ui/AnimatedCounter';
 import ScrollProgress from './ui/ScrollProgress';
 import ScoreGauge from './ui/ScoreGauge';
+import BrandLogo from './BrandLogo';
 import { 
   Code2, 
   Play, 
@@ -259,29 +260,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl p-0.5 flex items-center justify-center shadow-md ${
-                isDark 
-                  ? 'bg-gradient-to-tr from-white to-neutral-300' 
-                  : 'bg-gradient-to-tr from-[#1d1d1f] to-neutral-600'
-              }`}>
-                <div className={`w-full h-full rounded-[10px] flex items-center justify-center ${
-                  isDark ? 'bg-[#09090e]' : 'bg-white'
-                }`}>
-                  <Code2 className={`w-4 h-4 ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`} />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`font-semibold tracking-tight text-base ${isDark ? 'text-white' : 'text-[#1d1d1f]'}`}>
-                  CodeSense
-                </span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
-                  isDark 
-                    ? 'bg-white/10 text-neutral-300 border-white/15' 
-                    : 'bg-black/[0.05] text-neutral-700 border-black/10'
-                }`}>
-                  Pro
-                </span>
-              </div>
+              <BrandLogo isDark={isDark} badge="Pro" />
             </div>
 
             {/* Right Quick Actions */}

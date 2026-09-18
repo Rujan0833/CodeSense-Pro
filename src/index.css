@@ -1,6 +1,25 @@
 
 @import "tailwindcss";
 
+@keyframes studio-logo-breathe {
+  0%, 100% { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); }
+  50% { box-shadow: 0 7px 22px rgba(56, 189, 248, 0.18); }
+}
+
+.studio-logo {
+  animation: studio-logo-breathe 4s ease-in-out infinite;
+}
+
+.group:hover .studio-logo-icon {
+  transform: rotate(-8deg) scale(1.08);
+  transition: transform 220ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .studio-logo { animation: none; }
+  .group:hover .studio-logo-icon { transform: none; }
+}
+
 @layer base {
   :root {
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
