@@ -19,6 +19,23 @@ export interface AnalysisRequest {
   language: string;
 }
 
+export interface AnalysisResponse {
+  analysis: CodeAnalysis;
+  meta: {
+    language: string;
+    codeSize: number;
+    requestId: string;
+  };
+}
+
+export interface AnalysisApiErrorResponse {
+  error: {
+    code: string;
+    message: string;
+    requestId: string;
+  };
+}
+
 export interface AnalysisHistoryEntry {
   id: string;
   userId: string;

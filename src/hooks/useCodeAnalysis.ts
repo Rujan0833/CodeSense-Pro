@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { analyzeCode } from '../lib/openai';
+import { analyzeCode } from '../lib/analysisService';
 import type { AnalysisRequest } from '../types/analysis';
 
 export function useCodeAnalysis() {

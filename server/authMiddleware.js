@@ -27,6 +27,8 @@ import {
   isGitHubConfigured,
   readOAuthState
 } from './github.js';
+import { handleAnalysisRequest } from './analysis/analysisRoutes.js';
+import { createRequestId } from './analysis/analysisErrors.js';
 
 function parseBody(req, maxBytes = 1024 * 1024) {
   return new Promise((resolve, reject) => {
@@ -64,11 +66,25 @@ export function createAuthMiddleware() {
   return async (req, res, next) => {
     const url = req.url ? req.url.split('?')[0] : '';
 
-    if (!url.startsWith('/api/auth/') && !url.startsWith('/api/history') && !url.startsWith('/api/github')) {
+    if (!url.startsWith('/api/auth/') && !url.startsWith('/api/history') && !url.startsWith('/api/github') && url !== '/api/analyze') {
       return next();
     }
 
     try {
+      if (req.method === 'POST' && url === '/api/analyze') {
+        return handleAnalysisRequest(req, res);
+      }
+
+      if (url === '/api/analyze') {
+        return sendJson(res, 405, {
+          error: {
+            code: 'METHOD_NOT_ALLOWED',
+            message: 'Use POST for analysis requests.',
+            requestId: createRequestId(),
+          },
+        });
+      }
+
       if (url === '/api/github/callback') {
         const params = new URL(`http://localhost${req.url}`).searchParams;
         const code = params.get('code');

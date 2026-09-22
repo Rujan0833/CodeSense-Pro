@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { analyzeCode } from '../../../lib/openai';
+import { analyzeCode } from '../../../lib/analysisService';
 import type { CodeAnalysis } from '../../../types/analysis';
 import type { ProjectFile } from '../types';
 
@@ -7,6 +7,7 @@ export interface ProjectFileResult {
   fileId: string;
   path: string;
   size: number;
+  fingerprint: string;
   analysis: CodeAnalysis;
 }
 
@@ -17,6 +18,14 @@ interface UseProjectAnalysisOptions {
 
 function getStorageKey(userId: string) {
   return `codesense_project_results_${userId}`;
+}
+
+function createProjectFileFingerprint(file: Pick<ProjectFile, 'path' | 'language' | 'content'>) {
+  let hash = 0;
+  for (let index = 0; index < file.content.length; index += 1) {
+    hash = (hash * 31 + file.content.charCodeAt(index)) >>> 0;
+  }
+  return `${file.path}:${file.language}:${hash}`;
 }
 
 function readStoredResults(userId: string): ProjectFileResult[] {
@@ -36,6 +45,7 @@ export function useProjectAnalysis({ onFileAnalyzed, userId = 'anonymous' }: Use
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'running' | 'complete' | 'cancelled' | 'failed'>('idle');
   const cancelRef = useRef(false);
+  const activeAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     try {
@@ -48,6 +58,10 @@ export function useProjectAnalysis({ onFileAnalyzed, userId = 'anonymous' }: Use
 
   const analyzeProject = useCallback(async (files: ProjectFile[]) => {
     if (!files.length || isAnalyzing) return;
+
+    const previousResults = results;
+    const previousByFileId = new Map(previousResults.map((result) => [result.fileId, result]));
+
     setIsAnalyzing(true);
     setStatus('running');
     cancelRef.current = false;
@@ -60,29 +74,58 @@ export function useProjectAnalysis({ onFileAnalyzed, userId = 'anonymous' }: Use
     try {
       for (const file of files) {
         if (cancelRef.current) break;
-        const analysis = await analyzeCode({ code: file.content, language: file.language });
-        nextResults.push({ fileId: file.id, path: file.path, size: file.size, analysis });
+
+        const fingerprint = createProjectFileFingerprint(file);
+        const existing = previousByFileId.get(file.id);
+        if (existing && existing.fingerprint === fingerprint) {
+          nextResults.push({ ...existing, path: file.path, size: file.size, fingerprint });
+          previousByFileId.delete(file.id);
+          setResults([...nextResults]);
+          setCompletedCount(nextResults.length);
+          continue;
+        }
+
+        activeAbortRef.current?.abort();
+        const controller = new AbortController();
+        activeAbortRef.current = controller;
+
+        const analysis = await analyzeCode({ code: file.content, language: file.language }, controller.signal);
+
+        if (cancelRef.current) break;
+
+        const nextResult: ProjectFileResult = { fileId: file.id, path: file.path, size: file.size, fingerprint, analysis };
+        nextResults.push(nextResult);
+        previousByFileId.set(file.id, nextResult);
         onFileAnalyzed?.(file, analysis);
         setResults([...nextResults]);
         setCompletedCount(nextResults.length);
       }
     } catch (analysisError) {
+      if (analysisError instanceof Error && analysisError.name === 'AbortError') {
+        setStatus('cancelled');
+        return;
+      }
       failed = true;
       setError(analysisError instanceof Error ? analysisError.message : 'Project analysis failed.');
       setStatus('failed');
     } finally {
       setIsAnalyzing(false);
+      activeAbortRef.current = null;
       if (cancelRef.current) setStatus('cancelled');
       else if (!failed) setStatus('complete');
     }
-  }, [isAnalyzing, onFileAnalyzed]);
+  }, [isAnalyzing, onFileAnalyzed, results]);
 
   const cancelAnalysis = useCallback(() => {
     cancelRef.current = true;
+    activeAbortRef.current?.abort();
     setStatus('cancelled');
   }, []);
 
   const clearResults = useCallback(() => {
+    cancelRef.current = false;
+    activeAbortRef.current?.abort();
+    activeAbortRef.current = null;
     setResults([]);
     setCompletedCount(0);
     setError(null);

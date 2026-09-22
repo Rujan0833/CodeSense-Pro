@@ -4,6 +4,7 @@ import type { ProjectFile } from '../types';
 
 const MAX_FILE_SIZE = 512 * 1024;
 const MAX_FILES = 50;
+const MAX_PROJECT_SIZE = 5 * 1024 * 1024;
 const IGNORED_PARTS = ['node_modules', '.git', 'dist', 'build'];
 export const PROJECT_FILE_ACCEPT = [
   '.js', '.jsx', '.ts', '.tsx', '.py', '.java', '.cs', '.cpp', '.h', '.hpp',
@@ -66,13 +67,21 @@ export function useProjectFiles(userId = 'anonymous') {
       setError(`${rejected.map((file) => file.name).join(', ')} ${rejected.length === 1 ? 'is' : 'are'} not supported. Upload source files, Markdown, or text configuration files.`);
     }
     if (!candidates.length) return;
+
     const oversized = candidates.find((file) => file.size > MAX_FILE_SIZE);
     if (oversized) {
       setError(`${oversized.name} is larger than 512 KB and was not added.`);
       return;
     }
-    if (candidates.length > MAX_FILES) {
-      setError(`Select no more than ${MAX_FILES} files at a time.`);
+
+    const currentSize = files.reduce((total, file) => total + file.size, 0);
+    const candidateSize = candidates.reduce((total, file) => total + file.size, 0);
+    if (files.length + candidates.length > MAX_FILES) {
+      setError(`A project can contain no more than ${MAX_FILES} files.`);
+      return;
+    }
+    if (currentSize + candidateSize > MAX_PROJECT_SIZE) {
+      setError(`Project files cannot exceed ${Math.round(MAX_PROJECT_SIZE / 1024 / 1024)} MB total.`);
       return;
     }
 
@@ -81,7 +90,7 @@ export function useProjectFiles(userId = 'anonymous') {
       const merged = [...current, ...nextFiles];
       return merged.filter((file, index, all) => all.findIndex((item) => item.id === file.id) === index);
     });
-  }, []);
+  }, [files]);
 
   const removeFile = useCallback((id: string) => {
     setFiles((current) => current.filter((file) => file.id !== id));
