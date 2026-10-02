@@ -3,11 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "bin": {
+    "codesense": "./cli/index.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "cli": "node cli/index.js",
+    "test:cli": "node --test cli/*.test.js",
     "test:analysis": "node --test server/analysis/*.test.js"
   },
   "dependencies": {

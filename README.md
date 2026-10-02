@@ -147,6 +147,58 @@ The server enforces the following limits before calling the provider:
 
 JavaScript, TypeScript, Python, Java, C#, C++, Go, Rust, PHP, Ruby, Swift, Kotlin, CSS, HTML, SQL, Shell, PowerShell, JSON, YAML, XML, TOML, Markdown, Plaintext
 
+## CLI usage
+
+The project includes a local CLI for analyzing a single file or a folder.
+
+### Install the command locally
+
+```bash
+npm install
+npm link
+```
+
+This exposes the `codesense` command from the project root.
+
+### Common commands
+
+```bash
+codesense --help
+codesense config
+codesense config --server-url http://localhost:5173
+codesense analyze src/App.tsx
+codesense analyze src/App.tsx --language typescript
+codesense analyze src --format json
+codesense analyze . --server-url http://localhost:5173
+```
+
+### CLI output behavior
+
+- `human` output is meant for terminal use
+- `json` output is suitable for shell scripts and CI pipelines
+- exit codes are:
+  - `0` for no issues found
+  - `1` for issues found
+  - `2` for bad configuration or input
+  - `3` for local file or project validation failures
+  - `4` for network/server reachability failures
+  - `5` for provider/server response failures
+
+### CLI environment setup
+
+The CLI does not require the Groq API key in the local machine environment.
+It only needs the CodeSense server URL:
+
+```bash
+CODESENSE_API_URL=http://localhost:5173
+```
+
+or pass it directly:
+
+```bash
+codesense analyze src/App.tsx --server-url http://localhost:5173
+```
+
 ## Development
 
 ```bash
@@ -154,6 +206,7 @@ npm run dev
 npm run build
 npm run preview
 npm run test:analysis
+npm run test:cli
 ```
 
 ## Build
